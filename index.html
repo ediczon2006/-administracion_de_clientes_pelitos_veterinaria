@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pelitos Veterinaria - Sistema CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      background: linear-gradient(135deg, #F0FDFA 0%, #E0F2FE 100%);
+      color: #1E293B;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: white;
+      max-width: 680px;
+      width: 100%;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      padding: 40px;
+      border: 1px solid #E2E8F0;
+      text-align: center;
+    }
+    .badge {
+      display: inline-block;
+      background: #CCFBF1;
+      color: #0F766E;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 1.85rem;
+      color: #0F172A;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    p.lead {
+      color: #475569;
+      font-size: 1.05rem;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .btn-main {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: #0D9488;
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1.1rem;
+      padding: 14px 28px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+      transition: all 0.2s ease;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .btn-main:hover {
+      background: #0F766E;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(13, 148, 136, 0.4);
+    }
+    .info-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: left;
+      margin-top: 24px;
+    }
+    .info-box h3 {
+      font-size: 0.95rem;
+      color: #334155;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .info-box ol {
+      padding-left: 20px;
+      color: #64748B;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .info-box li {
+      margin-bottom: 6px;
+    }
+    .footer {
+      margin-top: 24px;
+      color: #94A3B8;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">🐾 Aplicación Web Python / Streamlit</span>
+    <h1>Pelitos Veterinaria CRM</h1>
+    <p class="lead">
+      Sistema integral de administración de clientes, expedientes clínicos 360°, vinculación de citas VetPraxis y fidelización por WhatsApp.
+    </p>
+
+    <a href="https://share.streamlit.io/deploy?repository=ediczon2006/-administracion_de_clientes_pelitos_veterinaria&branch=main&mainModule=app.py" target="_blank" class="btn-main">
+      🚀 Abrir / Desplegar Sistema en la Nube
+    </a>
+
+    <div class="info-box">
+      <h3>💡 ¿Por qué salía una página de texto antes?</h3>
+      <p style="color: #64748B; font-size: 0.88rem; line-height: 1.5; margin-bottom: 12px;">
+        <strong>GitHub Pages</strong> solo aloja páginas HTML estáticas y no puede ejecutar servidores Python. Al abrir el enlace de GitHub Pages, GitHub mostraba el texto del archivo <code>README.md</code>.
+      </p>
+      <h3>✨ Cómo usar el CRM en la Nube (Gratis y Permanente):</h3>
+      <ol>
+        <li>Haga clic en el botón verde superior <strong>"Abrir / Desplegar Sistema en la Nube"</strong>.</li>
+        <li>Inicie sesión con su cuenta de GitHub en Streamlit Cloud.</li>
+        <li>Haga clic en el botón <strong>"Deploy"</strong>.</li>
+        <li>¡Listo! Obtendrá un enlace web permanente (ejemplo: <code>https://pelitos-veterinaria.streamlit.app</code>) para acceder desde cualquier PC, tablet o celular.</li>
+      </ol>
+    </div>
+
+    <div class="footer">
+      Pelitos Veterinaria © 2026 • Sistema de Gestión y Fidelización de Pacientes
+    </div>
+  </div>
+</body>
+</html>
