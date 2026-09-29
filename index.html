@@ -3,146 +3,1055 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pelitos Veterinaria - Sistema CRM</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Panel de Administración - Pelitos Veterinaria</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS para leer Excel directamente en el navegador -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
-    body {
-      background: linear-gradient(135deg, #F0FDFA 0%, #E0F2FE 100%);
-      color: #1E293B;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    .card {
-      background: white;
-      max-width: 680px;
-      width: 100%;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-      padding: 40px;
-      border: 1px solid #E2E8F0;
-      text-align: center;
-    }
-    .badge {
-      display: inline-block;
-      background: #CCFBF1;
-      color: #0F766E;
-      font-weight: 600;
-      font-size: 0.85rem;
-      padding: 6px 14px;
-      border-radius: 9999px;
-      margin-bottom: 16px;
-    }
-    h1 {
-      font-size: 1.85rem;
-      color: #0F172A;
-      font-weight: 700;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-    p.lead {
-      color: #475569;
-      font-size: 1.05rem;
-      line-height: 1.6;
-      margin-bottom: 28px;
-    }
-    .btn-main {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      background: #0D9488;
-      color: white;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 1.1rem;
-      padding: 14px 28px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
-      transition: all 0.2s ease;
-      margin-bottom: 20px;
-      width: 100%;
-    }
-    .btn-main:hover {
-      background: #0F766E;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(13, 148, 136, 0.4);
-    }
-    .info-box {
-      background: #F8FAFC;
-      border: 1px solid #E2E8F0;
-      border-radius: 12px;
-      padding: 20px;
-      text-align: left;
-      margin-top: 24px;
-    }
-    .info-box h3 {
-      font-size: 0.95rem;
-      color: #334155;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .info-box ol {
-      padding-left: 20px;
-      color: #64748B;
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-    .info-box li {
-      margin-bottom: 6px;
-    }
-    .footer {
-      margin-top: 24px;
-      color: #94A3B8;
-      font-size: 0.85rem;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .sidebar-btn.active { background-color: #0D9488; color: white; }
+    .table-container { max-height: calc(100vh - 280px); overflow-y: auto; }
   </style>
 </head>
-<body>
-  <div class="card">
-    <span class="badge">🐾 Aplicación Web Python / Streamlit</span>
-    <h1>Pelitos Veterinaria CRM</h1>
-    <p class="lead">
-      Sistema integral de administración de clientes, expedientes clínicos 360°, vinculación de citas VetPraxis y fidelización por WhatsApp.
-    </p>
+<body class="text-slate-800 flex h-screen overflow-hidden">
 
-    <a href="https://share.streamlit.io/deploy?repository=ediczon2006/-administracion_de_clientes_pelitos_veterinaria&branch=main&mainModule=app.py" target="_blank" class="btn-main">
-      🚀 Abrir / Desplegar Sistema en la Nube
-    </a>
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shrink-0 shadow-xl">
+    <div>
+      <!-- Logo y Encabezado -->
+      <div class="p-5 border-b border-slate-800 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-teal-500 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-teal-500/30">
+          🐾
+        </div>
+        <div>
+          <h1 class="font-bold text-base text-white leading-tight">Pelitos Veterinaria</h1>
+          <p class="text-xs text-teal-400 font-medium">Panel de Administración</p>
+        </div>
+      </div>
 
-    <div class="info-box">
-      <h3>💡 ¿Por qué salía una página de texto antes?</h3>
-      <p style="color: #64748B; font-size: 0.88rem; line-height: 1.5; margin-bottom: 12px;">
-        <strong>GitHub Pages</strong> solo aloja páginas HTML estáticas y no puede ejecutar servidores Python. Al abrir el enlace de GitHub Pages, GitHub mostraba el texto del archivo <code>README.md</code>.
-      </p>
-      <h3>✨ Cómo usar el CRM en la Nube (Gratis y Permanente):</h3>
-      <ol>
-        <li>Haga clic en el botón verde superior <strong>"Abrir / Desplegar Sistema en la Nube"</strong>.</li>
-        <li>Inicie sesión con su cuenta de GitHub en Streamlit Cloud.</li>
-        <li>Haga clic en el botón <strong>"Deploy"</strong>.</li>
-        <li>¡Listo! Obtendrá un enlace web permanente (ejemplo: <code>https://pelitos-veterinaria.streamlit.app</code>) para acceder desde cualquier PC, tablet o celular.</li>
-      </ol>
+      <!-- Menú de Navegación -->
+      <nav class="p-3 space-y-1">
+        <button onclick="cambiarTab('dashboard')" id="nav-dashboard" class="sidebar-btn active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard General
+        </button>
+        <button onclick="cambiarTab('clientes')" id="nav-clientes" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <i data-lucide="users" class="w-4 h-4"></i> Cartera de Clientes
+        </button>
+        <button onclick="cambiarTab('mascotas')" id="nav-mascotas" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <i data-lucide="dog" class="w-4 h-4"></i> Pacientes / Mascotas
+        </button>
+        <button onclick="cambiarTab('atenciones')" id="nav-atenciones" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <i data-lucide="stethoscope" class="w-4 h-4"></i> Historias Clínicas
+        </button>
+        <button onclick="cambiarTab('ventas')" id="nav-ventas" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <i data-lucide="receipt" class="w-4 h-4"></i> Ventas & Facturación
+        </button>
+        <button onclick="cambiarTab('seguimientos')" id="nav-seguimientos" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <i data-lucide="phone-call" class="w-4 h-4"></i> CRM & WhatsApp
+        </button>
+        <button onclick="cambiarTab('importador')" id="nav-importador" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-teal-300 hover:bg-slate-800 transition">
+          <i data-lucide="file-up" class="w-4 h-4"></i> Importar VetPraxis
+        </button>
+        <button onclick="cambiarTab('agenda')" id="nav-agenda" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <i data-lucide="calendar" class="w-4 h-4"></i> Citas & Agenda
+        </button>
+      </nav>
     </div>
 
-    <div class="footer">
-      Pelitos Veterinaria © 2026 • Sistema de Gestión y Fidelización de Pacientes
+    <!-- Pie del Sidebar -->
+    <div class="p-4 border-t border-slate-800 text-xs text-slate-400 space-y-2">
+      <div class="flex items-center justify-between">
+        <span>Base de Datos:</span>
+        <span id="badge-estado-bd" class="text-teal-400 font-semibold">Cargada</span>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="cargarDemo()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-1.5 px-2 rounded text-center transition font-medium">
+          Cargar Demo
+        </button>
+        <button onclick="limpiarDatos()" class="w-full bg-red-950/60 hover:bg-red-900 text-red-300 py-1.5 px-2 rounded text-center transition font-medium">
+          Limpiar
+        </button>
+      </div>
     </div>
-  </div>
+  </aside>
+
+  <!-- ==================== CONTENIDO PRINCIPAL ==================== -->
+  <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+
+    <!-- Barra Superior -->
+    <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm">
+      <div class="flex items-center gap-3">
+        <h2 id="header-titulo" class="text-lg font-bold text-slate-800">Panel de Administración</h2>
+        <span class="text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full font-semibold border border-teal-200">En Línea</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Búsqueda Universal -->
+        <div class="relative w-72">
+          <input type="text" id="busqueda-global" oninput="buscarGlobalmente(this.value)" placeholder="Buscar cliente, DNI, mascota, HC..." class="w-full text-xs bg-slate-100 border border-slate-200 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5"></i>
+        </div>
+        <button onclick="exportarCopiaSeguridad()" title="Descargar Copia de Seguridad JSON" class="p-2 text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition border border-slate-200">
+          <i data-lucide="download" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Contenedor Dinámico de Vistas -->
+    <div class="flex-1 overflow-y-auto p-6">
+
+      <!-- 1. DASHBOARD GENERAL -->
+      <section id="tab-dashboard" class="tab-content active space-y-6">
+        <!-- Tarjetas de Métricas -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Clientes Registrados</p>
+              <h3 id="stat-clientes" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <i data-lucide="users" class="w-6 h-6"></i>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pacientes / Historias</p>
+              <h3 id="stat-mascotas" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              <i data-lucide="dog" class="w-6 h-6"></i>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Atenciones Clínicas</p>
+              <h3 id="stat-atenciones" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+              <i data-lucide="stethoscope" class="w-6 h-6"></i>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Seguimientos Activos</p>
+              <h3 id="stat-seguimientos" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+              <i data-lucide="phone-forwarded" class="w-6 h-6"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acciones Directas -->
+        <div class="bg-gradient-to-r from-teal-800 to-slate-900 rounded-xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-md">
+          <div>
+            <h3 class="text-lg font-bold">Administración de Pacientes y Fidelización Post-Atención</h3>
+            <p class="text-sm text-teal-200 mt-1">Cargue sus reportes de VetPraxis para vincular clientes, pacientes y enviar mensajes por WhatsApp en 1 clic.</p>
+          </div>
+          <div class="flex gap-3">
+            <button onclick="cambiarTab('importador')" class="bg-teal-500 hover:bg-teal-400 text-slate-900 font-bold px-4 py-2.5 rounded-lg text-sm shadow transition">
+              📥 Importar Reporte Excel
+            </button>
+            <button onclick="cambiarTab('seguimientos')" class="bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-lg text-sm transition">
+              📞 Ver Casos CRM
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla de Últimos Clientes -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+            <h4 class="font-bold text-slate-800 text-sm">Últimos Clientes con Mascotas Asociadas</h4>
+            <button onclick="cambiarTab('clientes')" class="text-teal-600 hover:text-teal-700 text-xs font-bold">Ver todos →</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <tr>
+                  <th class="p-3">Cliente / Tutor</th>
+                  <th class="p-3">Documento (DNI/RUC)</th>
+                  <th class="p-3">Celular</th>
+                  <th class="p-3">Mascotas Vinculadas</th>
+                  <th class="p-3 text-right">Contacto WhatsApp</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-resumen-clientes" class="divide-y divide-slate-100">
+                <!-- Inyectado por JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. CARTERA DE CLIENTES -->
+      <section id="tab-clientes" class="tab-content space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Directorio de Clientes</h3>
+            <p class="text-xs text-slate-500">Gestione los datos del tutor, teléfonos y sus mascotas vinculadas.</p>
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="filtro-cliente" oninput="renderizarClientes()" placeholder="Filtrar por nombre, DNI o teléfono..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="table-container">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b border-slate-200 z-10">
+                <tr>
+                  <th class="p-3.5">#</th>
+                  <th class="p-3.5">Cliente / Tutor</th>
+                  <th class="p-3.5">Documento</th>
+                  <th class="p-3.5">Celular</th>
+                  <th class="p-3.5">Mascotas Registradas</th>
+                  <th class="p-3.5 text-right">Acción Rápida</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-clientes" class="divide-y divide-slate-100">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. MASCOTAS / PACIENTES -->
+      <section id="tab-mascotas" class="tab-content space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Padrón de Pacientes y Mascotas</h3>
+            <p class="text-xs text-slate-500">Historias clínicas, especie, raza y relación con su tutor.</p>
+          </div>
+          <input type="text" id="filtro-mascota" oninput="renderizarMascotas()" placeholder="Filtrar por HC, nombre de mascota, especie..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="table-container">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b border-slate-200 z-10">
+                <tr>
+                  <th class="p-3.5">N° HC</th>
+                  <th class="p-3.5">Mascota</th>
+                  <th class="p-3.5">Especie / Raza</th>
+                  <th class="p-3.5">Sexo</th>
+                  <th class="p-3.5">Propietario / Tutor</th>
+                  <th class="p-3.5">Celular Tutor</th>
+                  <th class="p-3.5 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-mascotas" class="divide-y divide-slate-100">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. HISTORIAS CLÍNICAS -->
+      <section id="tab-atenciones" class="tab-content space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Atenciones Clínicas y Consultas</h3>
+            <p class="text-xs text-slate-500">Diagnósticos, tratamientos y motivos de consulta registrados en VetPraxis.</p>
+          </div>
+          <input type="text" id="filtro-atencion" oninput="renderizarAtenciones()" placeholder="Filtrar por diagnóstico o HC..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-64">
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="table-container">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b border-slate-200 z-10">
+                <tr>
+                  <th class="p-3.5">Fecha</th>
+                  <th class="p-3.5">N° HC</th>
+                  <th class="p-3.5">Paciente</th>
+                  <th class="p-3.5">Tipo Atención</th>
+                  <th class="p-3.5">Diagnóstico / Motivo</th>
+                  <th class="p-3.5">Tratamiento</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-atenciones" class="divide-y divide-slate-100">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. VENTAS Y FACTURACIÓN -->
+      <section id="tab-ventas" class="tab-content space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Registro de Ventas y Comprobantes</h3>
+            <p class="text-xs text-slate-500">Historial de facturación, boletas y consumos por tutor.</p>
+          </div>
+          <div class="flex gap-4 items-center">
+            <div class="text-xs font-semibold text-slate-600">
+              Total Facturado: <span id="suma-total-ventas" class="text-teal-600 text-sm font-bold">S/. 0.00</span>
+            </div>
+            <input type="text" id="filtro-ventas" oninput="renderizarVentas()" placeholder="Filtrar por comprobante o cliente..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-56">
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="table-container">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b border-slate-200 z-10">
+                <tr>
+                  <th class="p-3.5">Fecha</th>
+                  <th class="p-3.5">Comprobante</th>
+                  <th class="p-3.5">Cliente / Denominación</th>
+                  <th class="p-3.5">Concepto / Ítem</th>
+                  <th class="p-3.5 text-right">Monto Total</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-ventas" class="divide-y divide-slate-100">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. CRM Y SEGUIMIENTOS WHATSAPP -->
+      <section id="tab-seguimientos" class="tab-content space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">CRM de Fidelización y Contacto WhatsApp</h3>
+            <p class="text-xs text-slate-500">Seguimiento de controles post-consulta, vacunas anuales y reactivación.</p>
+          </div>
+          <button onclick="abrirModalNuevoSeguimiento()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo Caso
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="table-container">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b border-slate-200 z-10">
+                <tr>
+                  <th class="p-3.5">Fecha</th>
+                  <th class="p-3.5">Paciente / Tutor</th>
+                  <th class="p-3.5">Motivo Seguimiento</th>
+                  <th class="p-3.5">Estado</th>
+                  <th class="p-3.5">Última Gestión / Nota</th>
+                  <th class="p-3.5 text-right">WhatsApp & Gestión</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-seguimientos" class="divide-y divide-slate-100">
+                <!-- Inyectado dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. IMPORTADOR VETPRAXIS -->
+      <section id="tab-importador" class="tab-content space-y-6">
+        <div>
+          <h3 class="text-base font-bold text-slate-800">Ingesta y Procesamiento de Reportes VetPraxis</h3>
+          <p class="text-xs text-slate-500">Arrastre o seleccione sus archivos oficiales exportados desde VetPraxis para actualizar la base de datos.</p>
+        </div>
+
+        <!-- Zona Drag & Drop -->
+        <div id="drop-zone" ondragover="event.preventDefault(); this.classList.add('border-teal-500', 'bg-teal-50/50')" ondragleave="this.classList.remove('border-teal-500', 'bg-teal-50/50')" ondrop="handleDrop(event)" class="border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center bg-white hover:border-teal-400 transition cursor-pointer">
+          <input type="file" id="file-input" onchange="handleFileSelect(event)" accept=".xlsx, .xls, .csv" class="hidden">
+          <div onclick="document.getElementById('file-input').click()" class="flex flex-col items-center justify-center gap-3">
+            <div class="w-16 h-16 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center">
+              <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-700">Haga clic aquí o arrastre su archivo de VetPraxis</p>
+              <p class="text-xs text-slate-400 mt-1">Soporta: Clientes, Mascotas, Historias Clínicas, Comprobantes o Ventas (.xlsx, .xls, .csv)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estado de Importación -->
+        <div id="import-status" class="hidden bg-white p-5 rounded-xl border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-sm text-slate-800" id="import-filename">Archivo detectado</h4>
+            <span id="import-type-badge" class="text-xs bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded">TIPO</span>
+          </div>
+          <p id="import-summary" class="text-xs text-slate-600"></p>
+          <div class="flex gap-2 justify-end">
+            <button onclick="confirmarImportacion()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow">
+              Confirmar e Integrar a la Base de Datos
+            </button>
+          </div>
+        </div>
+
+        <!-- Guía de Formatos -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="bg-white p-4 rounded-xl border border-slate-200">
+            <h5 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-teal-600"></i> Reporte de Clientes</h5>
+            <p class="text-slate-500 mt-1">Normaliza nombres con apellidos invertidos, valida DNI/RUC y limpia celulares para WhatsApp directo (+51).</p>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200">
+            <h5 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-teal-600"></i> Reporte de Mascotas</h5>
+            <p class="text-slate-500 mt-1">Vincula el número de Historia Clínica (HC), especie, raza y asocia automáticamente con el tutor.</p>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200">
+            <h5 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-teal-600"></i> Atenciones y Ventas</h5>
+            <p class="text-slate-500 mt-1">Admite atenciones clínicas y reportes de comprobantes o ventas detalladas por ítem.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. CITAS Y AGENDA -->
+      <section id="tab-agenda" class="tab-content space-y-4">
+        <div>
+          <h3 class="text-base font-bold text-slate-800">Citas Médicas y Agenda VetPraxis</h3>
+          <p class="text-xs text-slate-500">Citas programadas sincronizadas de <code>platform.vetpraxis.app/#/events</code>.</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3 text-xs">
+          <h4 class="font-bold text-slate-700">Sincronización Rápida de Citas:</h4>
+          <p class="text-slate-500">Pegue un arreglo JSON de citas o eventos descargados de VetPraxis:</p>
+          <textarea id="json-citas" rows="3" placeholder='[{"fecha": "2026-09-23 10:00", "paciente": "Firulais", "cliente": "Ana Torres", "celular": "987654321", "motivo": "Vacunación"}]' class="w-full text-xs font-mono border border-slate-200 rounded p-2 focus:ring-1 focus:ring-teal-500"></textarea>
+          <button onclick="procesarJsonCitas()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-1.5 rounded text-xs">
+            Ingestar Citas a la Agenda
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+              <tr>
+                <th class="p-3">Fecha y Hora</th>
+                <th class="p-3">Paciente</th>
+                <th class="p-3">Cliente / Tutor</th>
+                <th class="p-3">Motivo / Tipo</th>
+                <th class="p-3">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-citas" class="divide-y divide-slate-100">
+              <!-- Citas dinámicas -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ==================== LÓGICA JAVASCRIPT DIRECTA ==================== -->
+  <script>
+    // Inicialización de la base en memoria local (LocalStorage)
+    const STORAGE_KEY = "pelitos_crm_data_v1";
+    let DB = cargarDB();
+
+    function cargarDB() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        try { return JSON.parse(data); } catch(e) { }
+      }
+      return { clientes: [], mascotas: [], atenciones: [], ventas: [], citas: [], seguimientos: [] };
+    }
+
+    function guardarDB() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+      actualizarEstadisticas();
+    }
+
+    // Inicializar iconos Lucide
+    function initIcons() {
+      lucide.createIcons();
+    }
+
+    // Navegación entre pestañas
+    function cambiarTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.sidebar-btn').forEach(el => el.classList.remove('active'));
+      
+      const tabEl = document.getElementById('tab-' + tabId);
+      const navEl = document.getElementById('nav-' + tabId);
+      if (tabEl) tabEl.classList.add('active');
+      if (navEl) navEl.classList.add('active');
+
+      const titulos = {
+        dashboard: "Dashboard General de la Clínica",
+        clientes: "Cartera y Directorio de Clientes",
+        mascotas: "Padrón de Historias Clínicas y Mascotas",
+        atenciones: "Atenciones Clínicas y Consultas",
+        ventas: "Registro de Ventas y Comprobantes",
+        seguimientos: "CRM de Fidelización y Contacto WhatsApp",
+        importador: "Ingesta de Reportes VetPraxis",
+        agenda: "Agenda y Citas Programadas"
+      };
+      document.getElementById('header-titulo').innerText = titulos[tabId] || "Panel de Administración";
+
+      // Renderizar la tabla correspondiente
+      if (tabId === 'clientes') renderizarClientes();
+      if (tabId === 'mascotas') renderizarMascotas();
+      if (tabId === 'atenciones') renderizarAtenciones();
+      if (tabId === 'ventas') renderizarVentas();
+      if (tabId === 'seguimientos') renderizarSeguimientos();
+      if (tabId === 'agenda') renderizarCitas();
+      if (tabId === 'dashboard') actualizarDashboard();
+      initIcons();
+    }
+
+    // Normalización de Teléfonos Peruanos
+    function normalizarTelefono(tel) {
+      if (!tel) return { raw: "", wa: null };
+      const limpios = String(tel).replace(/\D/g, '');
+      if (limpios.length === 9 && limpios.startsWith('9')) {
+        return { raw: limpios, wa: `https://wa.me/51${limpios}` };
+      }
+      if (limpios.length === 11 && limpios.startsWith('519')) {
+        return { raw: limpios.substring(2), wa: `https://wa.me/${limpios}` };
+      }
+      return { raw: tel, wa: null };
+    }
+
+    // Generar enlace WhatsApp con saludo respetuoso
+    function enlaceWhatsApp(tel, nombreCliente, nombreMascota) {
+      const info = normalizarTelefono(tel);
+      if (!info.wa) return null;
+      let saludo = `Hola ${nombreCliente || ''}, le escribimos de Pelitos Veterinaria`;
+      if (nombreMascota) {
+        saludo += ` con relación a su engreído(a) ${nombreMascota} 🐾.`;
+      } else {
+        saludo += ` para saludarle y ponernos a su disposición 🐾.`;
+      }
+      return `${info.wa}?text=${encodeURIComponent(saludo)}`;
+    }
+
+    // Actualizar Estadísticas del Dashboard
+    function actualizarEstadisticas() {
+      document.getElementById('stat-clientes').innerText = DB.clientes.length.toLocaleString();
+      document.getElementById('stat-mascotas').innerText = DB.mascotas.length.toLocaleString();
+      document.getElementById('stat-atenciones').innerText = DB.atenciones.length.toLocaleString();
+      document.getElementById('stat-seguimientos').innerText = DB.seguimientos.filter(s => s.estado !== 'Cerrado' && s.estado !== 'Descartado').length.toLocaleString();
+      
+      const badge = document.getElementById('badge-estado-bd');
+      if (DB.clientes.length > 0) {
+        badge.innerText = `${DB.clientes.length} Clientes`;
+        badge.className = "text-teal-400 font-semibold";
+      } else {
+        badge.innerText = "Vacía";
+        badge.className = "text-slate-400 font-semibold";
+      }
+    }
+
+    function actualizarDashboard() {
+      actualizarEstadisticas();
+      const tbody = document.getElementById('tabla-resumen-clientes');
+      tbody.innerHTML = '';
+      const ultimos = DB.clientes.slice(-5).reverse();
+      if (ultimos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Sin datos de clientes aún. Cargue un archivo en "Importar VetPraxis" o use "Cargar Demo".</td></tr>';
+        return;
+      }
+      ultimos.forEach(c => {
+        const mascotasVinculadas = DB.mascotas.filter(m => String(m.id_cliente) === String(c.id) || (m.dni && m.dni === c.documento)).map(m => m.nombre).join(', ') || '—';
+        const wa = enlaceWhatsApp(c.celular, c.nombre, null);
+        const waBtn = wa 
+          ? `<a href="${wa}" target="_blank" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>`
+          : '<span class="text-slate-400 text-xs">—</span>';
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-semibold text-slate-800">${c.nombre || '—'}</td>
+            <td class="p-3 text-slate-600 font-mono">${c.documento || '—'}</td>
+            <td class="p-3 text-slate-600">${c.celular || '—'}</td>
+            <td class="p-3 text-teal-700 font-medium">${mascotasVinculadas}</td>
+            <td class="p-3 text-right">${waBtn}</td>
+          </tr>
+        `;
+      });
+      initIcons();
+    }
+
+    // Renderizar Clientes
+    function renderizarClientes() {
+      const filtro = (document.getElementById('filtro-cliente').value || '').toLowerCase();
+      const tbody = document.getElementById('tabla-clientes');
+      tbody.innerHTML = '';
+      
+      const filtrados = DB.clientes.filter(c => 
+        (c.nombre && c.nombre.toLowerCase().includes(filtro)) ||
+        (c.documento && c.documento.includes(filtro)) ||
+        (c.celular && c.celular.includes(filtro))
+      );
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">No se encontraron clientes registrados.</td></tr>';
+        return;
+      }
+
+      filtrados.forEach((c, idx) => {
+        const mascotas = DB.mascotas.filter(m => String(m.id_cliente) === String(c.id) || (m.dni && m.dni === c.documento));
+        const mascotasTxt = mascotas.map(m => `🐾 <b>${m.nombre}</b> (${m.hc || 'Sin HC'})`).join(', ') || '<span class="text-slate-400">Sin mascotas</span>';
+        const primerMascota = mascotas.length > 0 ? mascotas[0].nombre : null;
+        const wa = enlaceWhatsApp(c.celular, c.nombre, primerMascota);
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3.5 text-slate-400 font-mono">${idx + 1}</td>
+            <td class="p-3.5 font-bold text-slate-800">${c.nombre || '—'}</td>
+            <td class="p-3.5 font-mono text-slate-600">${c.documento || '—'}</td>
+            <td class="p-3.5 text-slate-600">${c.celular || '—'}</td>
+            <td class="p-3.5">${mascotasTxt}</td>
+            <td class="p-3.5 text-right">
+              ${wa ? `<a href="${wa}" target="_blank" class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Contactar</a>` : '<span class="text-slate-400">Sin cel</span>'}
+            </td>
+          </tr>
+        `;
+      });
+      initIcons();
+    }
+
+    // Renderizar Mascotas
+    function renderizarMascotas() {
+      const filtro = (document.getElementById('filtro-mascota').value || '').toLowerCase();
+      const tbody = document.getElementById('tabla-mascotas');
+      tbody.innerHTML = '';
+
+      const filtrados = DB.mascotas.filter(m => 
+        (m.nombre && m.nombre.toLowerCase().includes(filtro)) ||
+        (m.hc && m.hc.toLowerCase().includes(filtro)) ||
+        (m.especie && m.especie.toLowerCase().includes(filtro)) ||
+        (m.propietario && m.propietario.toLowerCase().includes(filtro))
+      );
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">No hay mascotas que coincidan.</td></tr>';
+        return;
+      }
+
+      filtrados.forEach(m => {
+        const wa = enlaceWhatsApp(m.celular || m.propietario_celular, m.propietario, m.nombre);
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3.5 font-mono font-bold text-teal-700">${m.hc || '—'}</td>
+            <td class="p-3.5 font-bold text-slate-800 flex items-center gap-2">🐾 ${m.nombre}</td>
+            <td class="p-3.5 text-slate-600">${m.especie || '—'} / ${m.raza || '—'}</td>
+            <td class="p-3.5 text-slate-600">${m.sexo || '—'}</td>
+            <td class="p-3.5 font-medium text-slate-700">${m.propietario || '—'}</td>
+            <td class="p-3.5 text-slate-600">${m.celular || m.propietario_celular || '—'}</td>
+            <td class="p-3.5 text-right">
+              ${wa ? `<a href="${wa}" target="_blank" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>` : ''}
+            </td>
+          </tr>
+        `;
+      });
+      initIcons();
+    }
+
+    // Renderizar Atenciones
+    function renderizarAtenciones() {
+      const filtro = (document.getElementById('filtro-atencion').value || '').toLowerCase();
+      const tbody = document.getElementById('tabla-atenciones');
+      tbody.innerHTML = '';
+
+      const filtrados = DB.atenciones.filter(a => 
+        (a.diagnostico && a.diagnostico.toLowerCase().includes(filtro)) ||
+        (a.motivo && a.motivo.toLowerCase().includes(filtro)) ||
+        (a.hc && a.hc.toLowerCase().includes(filtro))
+      );
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">No hay atenciones clínicas registradas.</td></tr>';
+        return;
+      }
+
+      filtrados.forEach(a => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3.5 text-slate-600 whitespace-nowrap">${a.fecha || '—'}</td>
+            <td class="p-3.5 font-mono font-bold text-teal-700">${a.hc || '—'}</td>
+            <td class="p-3.5 font-semibold text-slate-800">${a.paciente || '—'}</td>
+            <td class="p-3.5"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold text-xs">${a.tipo || a.tipo_atencion || 'Consulta'}</span></td>
+            <td class="p-3.5 text-slate-700 max-w-xs truncate" title="${a.diagnostico || a.motivo || ''}">${a.diagnostico || a.motivo || '—'}</td>
+            <td class="p-3.5 text-slate-600 max-w-xs truncate" title="${a.tratamiento || ''}">${a.tratamiento || '—'}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // Renderizar Ventas
+    function renderizarVentas() {
+      const filtro = (document.getElementById('filtro-ventas').value || '').toLowerCase();
+      const tbody = document.getElementById('tabla-ventas');
+      tbody.innerHTML = '';
+
+      let totalSuma = 0;
+      const filtrados = DB.ventas.filter(v => {
+        const match = (v.cliente && v.cliente.toLowerCase().includes(filtro)) ||
+                      (v.comprobante && v.comprobante.toLowerCase().includes(filtro)) ||
+                      (v.item && v.item.toLowerCase().includes(filtro));
+        if (match) totalSuma += Number(v.total) || 0;
+        return match;
+      });
+
+      document.getElementById('suma-total-ventas').innerText = `S/. ${totalSuma.toFixed(2)}`;
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">No hay ventas registradas.</td></tr>';
+        return;
+      }
+
+      filtrados.forEach(v => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3.5 text-slate-600 whitespace-nowrap">${v.fecha || '—'}</td>
+            <td class="p-3.5 font-mono font-semibold text-slate-800">${v.comprobante || '—'}</td>
+            <td class="p-3.5 text-slate-700">${v.cliente || '—'}</td>
+            <td class="p-3.5 text-slate-600">${v.item || 'Venta General'}</td>
+            <td class="p-3.5 text-right font-bold text-slate-800 font-mono">S/. ${Number(v.total || 0).toFixed(2)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // Renderizar Seguimientos CRM
+    function renderizarSeguimientos() {
+      const tbody = document.getElementById('tabla-seguimientos');
+      tbody.innerHTML = '';
+
+      if (DB.seguimientos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">No hay seguimientos registrados. Haga clic en "+ Nuevo Caso" para agendar un control.</td></tr>';
+        return;
+      }
+
+      DB.seguimientos.forEach((s, idx) => {
+        const wa = enlaceWhatsApp(s.celular, s.cliente, s.mascota);
+        const coloresEstado = {
+          'Pendiente': 'bg-amber-100 text-amber-800',
+          'Contactado': 'bg-blue-100 text-blue-800',
+          'Cita generada': 'bg-emerald-100 text-emerald-800',
+          'Reactivado': 'bg-purple-100 text-purple-800',
+          'Descartado': 'bg-slate-100 text-slate-600'
+        };
+        const estadoClass = coloresEstado[s.estado] || 'bg-slate-100 text-slate-800';
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3.5 text-slate-600 whitespace-nowrap">${s.fecha || '—'}</td>
+            <td class="p-3.5 font-bold text-slate-800">
+              🐾 ${s.mascota || 'Mascota'}<br>
+              <span class="text-xs font-normal text-slate-500">${s.cliente || 'Tutor'}</span>
+            </td>
+            <td class="p-3.5 font-semibold text-teal-800">${s.motivo || 'Control Preventivo'}</td>
+            <td class="p-3.5"><span class="px-2.5 py-1 rounded-full font-bold text-xs ${estadoClass}">${s.estado}</span></td>
+            <td class="p-3.5 text-slate-600">${s.nota || s.resultado || 'Sin gestión previa'}</td>
+            <td class="p-3.5 text-right space-x-2">
+              ${wa ? `<a href="${wa}" target="_blank" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3 h-3"></i> WhatsApp</a>` : ''}
+              <button onclick="cambiarEstadoSeguimiento(${idx})" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-2 py-1 rounded text-xs font-semibold">Gestionar</button>
+            </td>
+          </tr>
+        `;
+      });
+      initIcons();
+    }
+
+    // Modal / Cambio de Estado de Seguimiento
+    function cambiarEstadoSeguimiento(idx) {
+      const nuevo = prompt("Ingrese nuevo estado (Pendiente, Contactado, Cita generada, Reactivado, Descartado):", DB.seguimientos[idx].estado);
+      if (nuevo) {
+        DB.seguimientos[idx].estado = nuevo;
+        const nota = prompt("Ingrese nota de la llamada / contacto:");
+        if (nota) DB.seguimientos[idx].nota = nota;
+        guardarDB();
+        renderizarSeguimientos();
+      }
+    }
+
+    function abrirModalNuevoSeguimiento() {
+      const cli = prompt("Nombre del Cliente / Tutor:");
+      if (!cli) return;
+      const mas = prompt("Nombre de la Mascota:");
+      const cel = prompt("Celular del Tutor (9 dígitos):");
+      const mot = prompt("Motivo de seguimiento (ej: Control de vacunas, Desparasitación, Post-operatorio):", "Control de vacunas");
+      
+      DB.seguimientos.push({
+        fecha: new Date().toISOString().split('T')[0],
+        cliente: cli,
+        mascota: mas,
+        celular: cel,
+        motivo: mot,
+        estado: 'Pendiente',
+        nota: 'Registro manual inicial'
+      });
+      guardarDB();
+      renderizarSeguimientos();
+    }
+
+    // Renderizar Citas
+    function renderizarCitas() {
+      const tbody = document.getElementById('tabla-citas');
+      tbody.innerHTML = '';
+      if (DB.citas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">Sin citas en la agenda. Pegue citas arriba o importe de VetPraxis.</td></tr>';
+        return;
+      }
+      DB.citas.forEach(c => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-semibold text-slate-800">${c.fecha}</td>
+            <td class="p-3 font-bold text-teal-700">🐾 ${c.paciente || c.mascota || '—'}</td>
+            <td class="p-3 text-slate-700">${c.cliente || '—'}</td>
+            <td class="p-3 text-slate-600">${c.motivo || c.tipo || 'Cita general'}</td>
+            <td class="p-3"><span class="bg-amber-50 text-amber-800 px-2 py-0.5 rounded font-bold text-xs">${c.estado || 'Pendiente'}</span></td>
+          </tr>
+        `;
+      });
+    }
+
+    function procesarJsonCitas() {
+      const val = document.getElementById('json-citas').value;
+      if (!val) return;
+      try {
+        const arr = JSON.parse(val);
+        if (Array.isArray(arr)) {
+          arr.forEach(c => DB.citas.push(c));
+          guardarDB();
+          renderizarCitas();
+          alert(`¡${arr.length} citas agregadas exitosamente!`);
+        }
+      } catch(e) {
+        alert("Error en formato JSON: " + e.message);
+      }
+    }
+
+    // ==================== LECTURA DE EXCEL (SHEETJS) ====================
+    let archivoPendiente = null;
+
+    function handleDrop(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.remove('border-teal-500', 'bg-teal-50/50');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        procesarArchivoSubido(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        procesarArchivoSubido(e.target.files[0]);
+      }
+    }
+
+    function procesarArchivoSubido(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonFilas = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (!jsonFilas || jsonFilas.length === 0) {
+          alert("El archivo está vacío.");
+          return;
+        }
+
+        // Detectar tipo y encabezado
+        const deteccion = detectarTipoReporte(jsonFilas, file.name);
+        archivoPendiente = {
+          nombre: file.name,
+          tipo: deteccion.tipo,
+          filas: deteccion.filas
+        };
+
+        document.getElementById('import-filename').innerText = file.name;
+        document.getElementById('import-type-badge').innerText = deteccion.tipo.toUpperCase();
+        document.getElementById('import-summary').innerText = `Se detectaron ${deteccion.filas.length} registros listos para integrar.`;
+        document.getElementById('import-status').classList.remove('hidden');
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function detectarTipoReporte(filas, nombreArchivo) {
+      const nombreMin = nombreArchivo.toLowerCase();
+      let tipo = "clientes";
+      if (nombreMin.includes("mascota")) tipo = "mascotas";
+      else if (nombreMin.includes("historia") || nombreMin.includes("clinica") || nombreMin.includes("atencion")) tipo = "atenciones";
+      else if (nombreMin.includes("comprobante") || nombreMin.includes("venta") || nombreMin.includes("item")) tipo = "ventas";
+
+      // Encontrar fila de encabezado (entre las primeras 10)
+      let filaEncabezado = 0;
+      for (let i = 0; i < Math.min(10, filas.length); i++) {
+        const f = filas[i].map(x => String(x || '').toLowerCase());
+        if (f.some(c => c.includes('dni') || c.includes('documento') || c.includes('hc') || c.includes('paciente') || c.includes('total') || c.includes('comprobante'))) {
+          filaEncabezado = i;
+          break;
+        }
+      }
+
+      const headers = filas[filaEncabezado].map(h => String(h || '').trim());
+      const dataRows = [];
+
+      for (let i = filaEncabezado + 1; i < filas.length; i++) {
+        const row = filas[i];
+        if (!row || row.length === 0 || row.every(x => x === null || x === undefined || x === '')) continue;
+        const obj = {};
+        headers.forEach((h, colIdx) => {
+          if (h) obj[h] = row[colIdx];
+        });
+        dataRows.push(obj);
+      }
+
+      return { tipo: tipo, filas: dataRows };
+    }
+
+    function confirmarImportacion() {
+      if (!archivoPendiente) return;
+      const { tipo, filas } = archivoPendiente;
+
+      if (tipo === "clientes") {
+        filas.forEach(f => {
+          const doc = String(f["DOCUMENTO"] || f["Documento"] || f["DNI"] || f["NÚMERO DE DOCUMENTO DE IDENTIDAD"] || '').trim();
+          let nom = String(f["NOMBRES Y APELLIDOS"] || f["Nombres y Apellidos"] || f["NOMBRE"] || f["Cliente"] || f["DENOMINACIÓN"] || '').trim();
+          if (nom.includes(',')) {
+            const p = nom.split(',');
+            nom = `${p[1] || ''} ${p[0] || ''}`.trim();
+          }
+          const cel = String(f["TELÉFONOS"] || f["Celular"] || f["CELULAR"] || f["Teléfono"] || '').trim();
+          if (nom || doc) {
+            DB.clientes.push({ id: DB.clientes.length + 1, documento: doc, nombre: nom, celular: cel });
+          }
+        });
+      } else if (tipo === "mascotas") {
+        filas.forEach(f => {
+          const hc = String(f["N° HISTORIA CLÍNICA"] || f["HC"] || f["Historia"] || '').trim();
+          const nom = String(f["MASCOTA"] || f["Mascota"] || f["Paciente"] || '').trim();
+          const esp = String(f["ESPECIE"] || f["Especie"] || '').trim();
+          const raz = String(f["RAZA"] || f["Raza"] || '').trim();
+          const sex = String(f["SEXO"] || f["Sexo"] || '').trim();
+          const prop = String(f["PROPIETARIO"] || f["Propietario"] || f["Dueño"] || '').trim();
+          const cel = String(f["CELULAR DEL PROPIETARIO"] || f["Celular"] || '').trim();
+          const dni = String(f["DNI"] || f["Documento"] || '').trim();
+          if (nom || hc) {
+            DB.mascotas.push({ hc: hc, nombre: nom, especie: esp, raza: raz, sexo: sex, propietario: prop, celular: cel, dni: dni });
+          }
+        });
+      } else if (tipo === "atenciones") {
+        filas.forEach(f => {
+          const fec = String(f["FECHA DE ATENCIÓN"] || f["FECHA"] || f["Fecha"] || '').trim();
+          const hc = String(f["HC"] || f["N° HISTORIA CLÍNICA"] || '').trim();
+          const pac = String(f["PACIENTE"] || f["Mascota"] || '').trim();
+          const tip = String(f["TIPO DE ATENCIÓN"] || f["TIPO"] || '').trim();
+          const mot = String(f["MOTIVO DE ATENCIÓN"] || f["MOTIVO"] || f["Motivo"] || '').trim();
+          const dx = String(f["DIAGNÓSTICO"] || f["EXAMEN CLÍNICO EXTENDIDO"] || f["Diagnóstico"] || '').trim();
+          const tx = String(f["TRATAMIENTO"] || f["Tratamiento"] || '').trim();
+          if (hc || fec) {
+            DB.atenciones.push({ fecha: fec, hc: hc, paciente: pac, tipo: tip, motivo: mot, diagnostico: dx, tratamiento: tx });
+          }
+        });
+      } else if (tipo === "ventas") {
+        filas.forEach(f => {
+          const fec = String(f["FECHA DE EMISIÓN"] || f["FECHA"] || f["Fecha"] || '').trim();
+          const comp = String(f["BOLETA/FACTURA"] || f["COMPROBANTE"] || f["Comprobante"] || f["N°"] || '').trim();
+          const cli = String(f["DENOMINACIÓN"] || f["CLIENTE"] || f["Cliente"] || '').trim();
+          const itm = String(f["PRODUCTO / SERVICIO"] || f["ITEM"] || f["Ítem"] || f["Descripción"] || 'Venta General').trim();
+          const tot = parseFloat(String(f["TOTAL"] || f["Total"] || f["IMPORTE"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          DB.ventas.push({ fecha: fec, comprobante: comp, cliente: cli, item: itm, total: tot });
+        });
+      }
+
+      guardarDB();
+      document.getElementById('import-status').classList.add('hidden');
+      alert(`¡Archivo procesado con éxito! Se integraron los registros.`);
+      cambiarTab(tipo);
+    }
+
+    // Búsqueda Universal
+    function buscarGlobalmente(texto) {
+      if (!texto) return;
+      const t = texto.toLowerCase();
+      // Si coincide con cliente, ir a clientes
+      const cli = DB.clientes.some(c => (c.nombre && c.nombre.toLowerCase().includes(t)) || (c.documento && c.documento.includes(t)));
+      if (cli) {
+        document.getElementById('filtro-cliente').value = texto;
+        cambiarTab('clientes');
+        return;
+      }
+      const mas = DB.mascotas.some(m => (m.nombre && m.nombre.toLowerCase().includes(t)) || (m.hc && m.hc.toLowerCase().includes(t)));
+      if (mas) {
+        document.getElementById('filtro-mascota').value = texto;
+        cambiarTab('mascotas');
+        return;
+      }
+    }
+
+    // Cargar Datos Ficticios de Demostración
+    function cargarDemo() {
+      DB = {
+        clientes: [
+          { id: 1, documento: "45678912", nombre: "Ana Torres Quispe", celular: "987654321" },
+          { id: 2, documento: "40123456", nombre: "Luis Ramírez Soto", celular: "962111222" },
+          { id: 3, documento: "71234567", nombre: "María López Vega", celular: "944222333" },
+          { id: 4, documento: "43210987", nombre: "Pedro Castillo Neyra", celular: "987654321" },
+          { id: 5, documento: "46789123", nombre: "Jorge Paredes Ríos", celular: "999888777" }
+        ],
+        mascotas: [
+          { hc: "1001", nombre: "Firulais", especie: "Canino", raza: "Mestizo", sexo: "Macho", propietario: "Ana Torres Quispe", celular: "987654321", dni: "45678912" },
+          { hc: "1002", nombre: "Luna", especie: "Felino", raza: "Siamés", sexo: "Hembra", propietario: "Luis Ramírez Soto", celular: "962111222", dni: "40123456" },
+          { hc: "1003", nombre: "Max", especie: "Canino", raza: "Labrador", sexo: "Macho", propietario: "Luis Ramírez Soto", celular: "962111222", dni: "40123456" },
+          { hc: "1004", nombre: "Michi", especie: "Felino", raza: "Mestizo", sexo: "Hembra", propietario: "María López Vega", celular: "944222333", dni: "71234567" },
+          { hc: "1005", nombre: "Rocky", especie: "Canino", raza: "Pitbull", sexo: "Macho", propietario: "Jorge Paredes Ríos", celular: "999888777", dni: "46789123" }
+        ],
+        atenciones: [
+          { fecha: "2026-09-22", hc: "1001", paciente: "Firulais", tipo: "Vacuna", diagnostico: "Control Anual Quíntuple", tratamiento: "Aplicación vacuna séxtuple + desparasitante interno." },
+          { fecha: "2026-09-20", hc: "1002", paciente: "Luna", tipo: "Consulta", diagnostico: "Gastroenteritis leve por cambio de alimento", tratamiento: "Ranitidina + Probióticos por 5 días." },
+          { fecha: "2026-09-18", hc: "1003", paciente: "Max", tipo: "Control", diagnostico: "Limpieza ótica", tratamiento: "Gotas óticas cada 12h." }
+        ],
+        ventas: [
+          { fecha: "2026-09-22", comprobante: "B001-000145", cliente: "Ana Torres Quispe", item: "Vacuna Séxtuple Canina", total: 65.00 },
+          { fecha: "2026-09-20", comprobante: "B001-000146", cliente: "Luis Ramírez Soto", item: "Consulta Veterinaria + Probióticos", total: 85.00 },
+          { fecha: "2026-09-18", comprobante: "B001-000147", cliente: "María López Vega", item: "Alimento Gato Esterilizado 3Kg", total: 110.00 }
+        ],
+        seguimientos: [
+          { fecha: "2026-09-22", cliente: "Ana Torres Quispe", mascota: "Firulais", celular: "987654321", motivo: "Refuerzo Rabia", estado: "Pendiente", nota: "Tutor solicitó recordar la próxima semana." },
+          { fecha: "2026-09-20", cliente: "Luis Ramírez Soto", mascota: "Luna", celular: "962111222", motivo: "Evolución Gastritis", estado: "Contactado", nota: "Indicó que ya no tiene vómitos, continúa con dieta blanda." }
+        ],
+        citas: [
+          { fecha: "2026-09-23 10:00", paciente: "Firulais", cliente: "Ana Torres", motivo: "Baño Medicado", estado: "Pendiente" },
+          { fecha: "2026-09-23 11:30", paciente: "Max", cliente: "Luis Ramírez", motivo: "Revisión Oídos", estado: "Confirmada" }
+        ]
+      };
+      guardarDB();
+      actualizarDashboard();
+      alert("¡Datos de demostración cargados exitosamente!");
+    }
+
+    // Limpiar toda la base
+    function limpiarDatos() {
+      if (confirm("¿Está seguro de limpiar todos los datos? Se restablecerán a 0.")) {
+        DB = { clientes: [], mascotas: [], atenciones: [], ventas: [], citas: [], seguimientos: [] };
+        guardarDB();
+        actualizarDashboard();
+      }
+    }
+
+    // Exportar Copia de Seguridad JSON
+    function exportarCopiaSeguridad() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DB, null, 2));
+      const a = document.createElement('a');
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", `pelitos_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    // Al cargar la ventana
+    window.onload = function() {
+      if (DB.clientes.length === 0) {
+        cargarDemo(); // Auto-cargar demo si está vacío para mostrar funcionalidad inmediata
+      } else {
+        actualizarDashboard();
+      }
+      initIcons();
+    };
+  </script>
 </body>
 </html>
