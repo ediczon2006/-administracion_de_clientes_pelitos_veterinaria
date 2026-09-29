@@ -40,6 +40,12 @@
         <button onclick="cambiarTab('dashboard')" id="nav-dashboard" class="sidebar-btn active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
         </button>
+        <button onclick="cambiarTab('citas')" id="nav-citas" class="sidebar-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+          <div class="flex items-center gap-3">
+            <i data-lucide="calendar-clock" class="w-4 h-4 text-amber-400"></i> Citas Pendientes
+          </div>
+          <span id="badge-citas-pendientes-sidebar" class="bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full text-xs">0</span>
+        </button>
         <button onclick="cambiarTab('clientes')" id="nav-clientes" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition">
           <i data-lucide="users" class="w-4 h-4"></i> Clientes / Tutores
         </button>
@@ -92,9 +98,9 @@
         <span id="badge-total-global" class="text-xs bg-teal-50 text-teal-700 px-2.5 py-0.5 rounded-full font-semibold border border-teal-200">0 Registros</span>
       </div>
       <div class="flex items-center gap-4">
-        <!-- Búsqueda Universal con Debounce -->
+        <!-- Búsqueda Universal -->
         <div class="relative w-80">
-          <input type="text" id="busqueda-global" oninput="debounceBuscarGlobal(this.value)" placeholder="Buscar cliente, DNI, paciente, HC..." class="w-full text-xs bg-slate-100 border border-slate-200 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <input type="text" id="busqueda-global" oninput="debounceBuscarGlobal(this.value)" placeholder="Buscar cliente, DNI, paciente, HC, motivo..." class="w-full text-xs bg-slate-100 border border-slate-200 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
           <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5"></i>
         </div>
         <button onclick="exportarCopiaSeguridadJSON()" title="Descargar Copia de Seguridad JSON" class="p-2 text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition border border-slate-200 flex items-center gap-1.5 text-xs font-semibold">
@@ -103,7 +109,7 @@
       </div>
     </header>
 
-    <!-- Barra de Progreso Global para Ingestas Masivas -->
+    <!-- Barra de Progreso Global -->
     <div id="contenedor-progreso" class="hidden bg-white border-b border-slate-200 px-6 py-3 shadow-sm shrink-0">
       <div class="flex justify-between items-center text-xs font-semibold mb-1">
         <span id="progreso-titulo" class="text-teal-700">Procesando registros...</span>
@@ -120,32 +126,41 @@
       <!-- 1. DASHBOARD -->
       <section id="tab-dashboard" class="tab-content active space-y-6">
         <!-- Tarjetas de Métricas -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Clientes Registrados</p>
+              <p class="text-xs font-medium text-amber-600 uppercase tracking-wider font-bold">Citas Pendientes</p>
+              <h3 id="stat-citas-pendientes" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+            </div>
+            <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+              <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Clientes</p>
               <h3 id="stat-clientes" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
             </div>
-            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-              <i data-lucide="users" class="w-6 h-6"></i>
+            <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <i data-lucide="users" class="w-5 h-5"></i>
             </div>
           </div>
           <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pacientes / Historias</p>
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pacientes / HC</p>
               <h3 id="stat-mascotas" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
             </div>
-            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <i data-lucide="dog" class="w-6 h-6"></i>
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+              <i data-lucide="dog" class="w-5 h-5"></i>
             </div>
           </div>
           <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
-              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Atenciones Clínicas</p>
+              <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Atenciones</p>
               <h3 id="stat-atenciones" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
             </div>
-            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-              <i data-lucide="stethoscope" class="w-6 h-6"></i>
+            <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+              <i data-lucide="stethoscope" class="w-5 h-5"></i>
             </div>
           </div>
           <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -153,32 +168,32 @@
               <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Facturación Total</p>
               <h3 id="stat-ventas-monto" class="text-2xl font-bold text-teal-600 mt-1">S/. 0.00</h3>
             </div>
-            <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
-              <i data-lucide="badge-dollar-sign" class="w-6 h-6"></i>
+            <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+              <i data-lucide="badge-dollar-sign" class="w-5 h-5"></i>
             </div>
           </div>
         </div>
 
-        <!-- Banner de Ingesta Rápida -->
+        <!-- Banner de Ingesta y Citas -->
         <div class="bg-gradient-to-r from-teal-800 to-slate-900 rounded-xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-md">
           <div>
-            <h3 class="text-lg font-bold">Arquitectura de Alto Rendimiento para Pelitos Veterinaria</h3>
-            <p class="text-sm text-teal-200 mt-1">Motor indexado en IndexedDB capaz de gestionar más de 1,000,000 de registros con paginación instantánea y cero lentitud.</p>
+            <h3 class="text-lg font-bold">Gestión Integral de Pacientes, Citas y Facturación Completa</h3>
+            <p class="text-sm text-teal-200 mt-1">Soporta todos los campos de VetPraxis (anamnesis, constantes fisiológicas, diagnósticos, subtotal, saldo pendiente y recordatorios de citas).</p>
           </div>
           <div class="flex gap-3">
+            <button onclick="cambiarTab('citas')" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold px-4 py-2.5 rounded-lg text-sm shadow transition flex items-center gap-1.5">
+              <i data-lucide="calendar" class="w-4 h-4"></i> Ver Citas Pendientes
+            </button>
             <button onclick="cambiarTab('importador')" class="bg-teal-500 hover:bg-teal-400 text-slate-900 font-bold px-4 py-2.5 rounded-lg text-sm shadow transition flex items-center gap-1.5">
               <i data-lucide="upload-cloud" class="w-4 h-4"></i> Ingestar Reportes
-            </button>
-            <button onclick="cambiarTab('seguimientos')" class="bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-lg text-sm transition">
-              📞 CRM & WhatsApp
             </button>
           </div>
         </div>
 
-        <!-- Resumen de Últimos Registros -->
+        <!-- Resumen de Pacientes Recientes -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-            <h4 class="font-bold text-slate-800 text-sm">Pacientes Recientes y Estado de Contacto</h4>
+            <h4 class="font-bold text-slate-800 text-sm">Pacientes Recientes Registrados</h4>
             <button onclick="cambiarTab('mascotas')" class="text-teal-600 hover:text-teal-700 text-xs font-bold">Ver todos los pacientes →</button>
           </div>
           <div class="overflow-x-auto">
@@ -192,24 +207,62 @@
                   <th class="p-3 text-right">Acción WhatsApp</th>
                 </tr>
               </thead>
-              <tbody id="tabla-resumen-dashboard" class="divide-y divide-slate-100">
-                <!-- Dinámico -->
-              </tbody>
+              <tbody id="tabla-resumen-dashboard" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- 2. CLIENTES -->
+      <!-- 2. CITAS & AGENDA (PENDIENTES) -->
+      <section id="tab-citas" class="tab-content space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Citas & Agenda de Pacientes (VetPraxis)</h3>
+            <p class="text-xs text-slate-500">Gestión de citas pendientes de atención, confirmaciones y recordatorios por WhatsApp.</p>
+          </div>
+          <div class="flex gap-2 items-center">
+            <div class="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-xs">
+              <button onclick="filtrarCitasPorEstado('pending')" id="btn-filtro-citas-pending" class="px-3 py-1 font-bold rounded-md bg-amber-100 text-amber-800 transition">🟡 Solo Pendientes</button>
+              <button onclick="filtrarCitasPorEstado('confirmed')" id="btn-filtro-citas-confirmed" class="px-3 py-1 font-semibold rounded-md text-slate-600 hover:text-slate-900 transition">🟢 Confirmadas</button>
+              <button onclick="filtrarCitasPorEstado('')" id="btn-filtro-citas-todas" class="px-3 py-1 font-semibold rounded-md text-slate-600 hover:text-slate-900 transition">🔵 Todas</button>
+            </div>
+            <input type="text" id="filtro-citas" oninput="debounceFiltrarTabla('citas', this.value)" placeholder="Buscar cita por paciente, cliente o motivo..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            <button onclick="abrirModalNuevaCita()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 shadow">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agendar Cita
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla de Citas -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="table-container">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b border-slate-200 z-10">
+                <tr>
+                  <th class="p-3.5">Fecha y Hora</th>
+                  <th class="p-3.5">Paciente & HC</th>
+                  <th class="p-3.5">Tutor / Cliente</th>
+                  <th class="p-3.5">Celular</th>
+                  <th class="p-3.5">Motivo / Tipo</th>
+                  <th class="p-3.5">Estado</th>
+                  <th class="p-3.5 text-right">Recordatorio & Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-citas" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+          <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs" id="paginador-citas"></div>
+        </div>
+      </section>
+
+      <!-- 3. CLIENTES -->
       <section id="tab-clientes" class="tab-content space-y-4">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 class="text-base font-bold text-slate-800">Cartera de Clientes / Tutores</h3>
-            <p class="text-xs text-slate-500">Búsqueda indexada sobre la base de datos sin límite de volumen.</p>
+            <h3 class="text-base font-bold text-slate-800">Cartera y Directorio Completo de Clientes</h3>
+            <p class="text-xs text-slate-500">Muestra datos extendidos: DNI, dirección, zona, email, fecha de nacimiento, estado y observaciones.</p>
           </div>
-          <div class="flex gap-2">
-            <input type="text" id="filtro-cliente" oninput="debounceFiltrarTabla('clientes', this.value)" placeholder="Buscar por nombre, documento o celular..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-72 focus:ring-2 focus:ring-teal-500 focus:outline-none">
-          </div>
+          <input type="text" id="filtro-cliente" oninput="debounceFiltrarTabla('clientes', this.value)" placeholder="Buscar por nombre, documento o celular..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-72 focus:ring-2 focus:ring-teal-500 focus:outline-none">
         </div>
 
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -221,24 +274,24 @@
                   <th class="p-3.5">Cliente / Tutor</th>
                   <th class="p-3.5">Documento</th>
                   <th class="p-3.5">Celular</th>
-                  <th class="p-3.5">Dirección</th>
-                  <th class="p-3.5 text-right">Contacto</th>
+                  <th class="p-3.5">Dirección / Zona</th>
+                  <th class="p-3.5">Mascotas Asignadas</th>
+                  <th class="p-3.5 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tabla-clientes" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
-          <!-- Controles de Paginación -->
           <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs" id="paginador-clientes"></div>
         </div>
       </section>
 
-      <!-- 3. MASCOTAS -->
+      <!-- 4. MASCOTAS -->
       <section id="tab-mascotas" class="tab-content space-y-4">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h3 class="text-base font-bold text-slate-800">Padrón de Pacientes / Historias Clínicas</h3>
-            <p class="text-xs text-slate-500">Expedientes clínicos y tutores asignados.</p>
+            <p class="text-xs text-slate-500">Datos completos: color, esterilización, fecha de nacimiento, estado y tutor.</p>
           </div>
           <input type="text" id="filtro-mascota" oninput="debounceFiltrarTabla('mascotas', this.value)" placeholder="Buscar por HC, mascota, especie o propietario..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-72 focus:ring-2 focus:ring-teal-500 focus:outline-none">
         </div>
@@ -251,10 +304,10 @@
                   <th class="p-3.5">N° HC</th>
                   <th class="p-3.5">Paciente</th>
                   <th class="p-3.5">Especie / Raza</th>
-                  <th class="p-3.5">Sexo</th>
+                  <th class="p-3.5">Sexo / Esterilizado</th>
                   <th class="p-3.5">Propietario / Tutor</th>
                   <th class="p-3.5">Celular</th>
-                  <th class="p-3.5 text-right">Acción</th>
+                  <th class="p-3.5 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tabla-mascotas" class="divide-y divide-slate-100"></tbody>
@@ -264,12 +317,12 @@
         </div>
       </section>
 
-      <!-- 4. ATENCIONES -->
+      <!-- 5. ATENCIONES CLÍNICAS -->
       <section id="tab-atenciones" class="tab-content space-y-4">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 class="text-base font-bold text-slate-800">Atenciones Clínicas y Consultas</h3>
-            <p class="text-xs text-slate-500">Historial médico, diagnósticos y tratamientos aplicados.</p>
+            <h3 class="text-base font-bold text-slate-800">Historias Clínicas & Atenciones</h3>
+            <p class="text-xs text-slate-500">Expediente clínico completo: constantes fisiológicas, anamnesis, diagnóstico, exámenes y receta.</p>
           </div>
           <input type="text" id="filtro-atencion" oninput="debounceFiltrarTabla('atenciones', this.value)" placeholder="Buscar por diagnóstico, HC o paciente..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-72 focus:ring-2 focus:ring-teal-500 focus:outline-none">
         </div>
@@ -285,6 +338,7 @@
                   <th class="p-3.5">Tipo</th>
                   <th class="p-3.5">Diagnóstico / Motivo</th>
                   <th class="p-3.5">Tratamiento</th>
+                  <th class="p-3.5 text-right">Ficha Médica</th>
                 </tr>
               </thead>
               <tbody id="tabla-atenciones" class="divide-y divide-slate-100"></tbody>
@@ -294,12 +348,12 @@
         </div>
       </section>
 
-      <!-- 5. VENTAS -->
+      <!-- 6. VENTAS Y FACTURACIÓN -->
       <section id="tab-ventas" class="tab-content space-y-4">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 class="text-base font-bold text-slate-800">Facturación & Ventas</h3>
-            <p class="text-xs text-slate-500">Comprobantes, boletas y detalles por ítem.</p>
+            <h3 class="text-base font-bold text-slate-800">Facturación & Control de Pagos</h3>
+            <p class="text-xs text-slate-500">Incluye subtotal, IGV, costo, utilidad, montos pagados y saldos pendientes.</p>
           </div>
           <input type="text" id="filtro-ventas" oninput="debounceFiltrarTabla('ventas', this.value)" placeholder="Buscar por comprobante, cliente o ítem..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-72 focus:ring-2 focus:ring-teal-500 focus:outline-none">
         </div>
@@ -313,7 +367,9 @@
                   <th class="p-3.5">Comprobante</th>
                   <th class="p-3.5">Cliente</th>
                   <th class="p-3.5">Concepto / Ítem</th>
-                  <th class="p-3.5 text-right">Total (S/.)</th>
+                  <th class="p-3.5">Total (S/.)</th>
+                  <th class="p-3.5">Estado / Saldo</th>
+                  <th class="p-3.5 text-right">Detalle</th>
                 </tr>
               </thead>
               <tbody id="tabla-ventas" class="divide-y divide-slate-100"></tbody>
@@ -323,12 +379,12 @@
         </div>
       </section>
 
-      <!-- 6. CRM SEGUIMIENTOS -->
+      <!-- 7. CRM SEGUIMIENTOS -->
       <section id="tab-seguimientos" class="tab-content space-y-4">
         <div class="flex justify-between items-center">
           <div>
             <h3 class="text-base font-bold text-slate-800">Seguimientos Clínicos & Fidelización</h3>
-            <p class="text-xs text-slate-500">Recordatorios de controles, vacunas y evolución de pacientes.</p>
+            <p class="text-xs text-slate-500">Recordatorios de controles post-consulta, vacunas y evolución.</p>
           </div>
           <button onclick="crearSeguimientoManual()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nuevo Recordatorio
@@ -355,11 +411,11 @@
         </div>
       </section>
 
-      <!-- 7. INGESTA VETPRAXIS (ALTO VOLUMEN) -->
+      <!-- 8. INGESTA VETPRAXIS (ALTO VOLUMEN Y EXTENDIDA) -->
       <section id="tab-importador" class="tab-content space-y-6">
         <div>
-          <h3 class="text-base font-bold text-slate-800">Ingesta Masiva de Datos VetPraxis</h3>
-          <p class="text-xs text-slate-500">Soporte verificado para archivos gigantes y millones de filas sin congelar la interfaz.</p>
+          <h3 class="text-base font-bold text-slate-800">Ingesta de Datos Extendidos VetPraxis</h3>
+          <p class="text-xs text-slate-500">Carga todas las columnas y metadatos de VetPraxis (incluyendo citas de la agenda, constantes clínicas, diagnósticos y saldos de facturación).</p>
         </div>
 
         <!-- Zona Drag & Drop -->
@@ -371,7 +427,7 @@
             </div>
             <div>
               <p class="text-sm font-bold text-slate-700">Arrastre su archivo Excel o CSV de VetPraxis aquí</p>
-              <p class="text-xs text-slate-400 mt-1">Clientes, Mascotas, Historias Clínicas, Comprobantes o Ventas</p>
+              <p class="text-xs text-slate-400 mt-1">Soporta: Clientes, Mascotas, Historias Clínicas, Comprobantes, Ventas o Agenda de Citas</p>
             </div>
           </div>
         </div>
@@ -382,12 +438,12 @@
             <i data-lucide="clipboard-paste" class="w-5 h-5 text-teal-600"></i>
             <h4 class="font-bold text-sm text-slate-800">Pegar Texto CSV / Reporte Directamente</h4>
           </div>
-          <p class="text-xs text-slate-500">Copie y pegue filas directamente de VetPraxis o Excel. El sistema identificará las columnas automáticamente:</p>
-          <textarea id="textarea-pegar-csv" rows="6" placeholder="Pegue aquí el texto copiado de VetPraxis (ej: FECHA DE REGISTRO,NOMBRES Y APELLIDOS...)" class="w-full text-xs font-mono border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+          <p class="text-xs text-slate-500">Copie y pegue filas directamente de VetPraxis o Excel. El sistema identificará automáticamente todas las columnas extendidas y las citas:</p>
+          <textarea id="textarea-pegar-csv" rows="6" placeholder="Pegue aquí el texto copiado de VetPraxis (ej: FECHA DE REGISTRO,NOMBRES Y APELLIDOS... o FECHA DE ATENCIÓN... o START_AT...)" class="w-full text-xs font-mono border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-teal-500"></textarea>
           <div class="flex justify-between items-center">
-            <span class="text-xs text-slate-400">Procesamiento por bloques para mantener fluidez total.</span>
+            <span class="text-xs text-slate-400">Procesa todos los campos enriquecidos sin perder ningún detalle clínico o comercial.</span>
             <button onclick="procesarTextoPegado()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow transition flex items-center gap-1.5">
-              <i data-lucide="zap" class="w-4 h-4"></i> Procesar Texto
+              <i data-lucide="zap" class="w-4 h-4"></i> Procesar Texto Completo
             </button>
           </div>
         </div>
@@ -396,18 +452,80 @@
     </div>
   </main>
 
+  <!-- ==================== MODAL DE DETALLE COMPLETO ==================== -->
+  <div id="modal-detalle" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in duration-150">
+      <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+        <div class="flex items-center gap-2">
+          <div id="modal-icono" class="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-sm">👁️</div>
+          <h3 id="modal-titulo" class="font-bold text-slate-800 text-base">Ficha Detallada</h3>
+        </div>
+        <button onclick="cerrarModalDetalle()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="modal-cuerpo" class="p-6 overflow-y-auto space-y-4 text-xs"></div>
+      <div class="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+        <span class="text-xs text-slate-400">Datos registrados en el sistema</span>
+        <button onclick="cerrarModalDetalle()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL NUEVA CITA ==================== -->
+  <div id="modal-nueva-cita" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden p-6 space-y-4 text-xs">
+      <h3 class="font-bold text-slate-800 text-sm">Agendar Cita en Pelitos Veterinaria</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-slate-600 font-semibold mb-1">Fecha y Hora:</label>
+          <input type="datetime-local" id="nueva-cita-fecha" class="w-full border border-slate-200 rounded-lg p-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-semibold mb-1">Nombre del Paciente / Mascota:</label>
+          <input type="text" id="nueva-cita-paciente" placeholder="Ej: Firulais" class="w-full border border-slate-200 rounded-lg p-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-semibold mb-1">Nombre del Tutor / Cliente:</label>
+          <input type="text" id="nueva-cita-cliente" placeholder="Ej: Ana Torres" class="w-full border border-slate-200 rounded-lg p-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-semibold mb-1">Celular del Tutor (WhatsApp):</label>
+          <input type="text" id="nueva-cita-celular" placeholder="Ej: 987654321" class="w-full border border-slate-200 rounded-lg p-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-slate-600 font-semibold mb-1">Motivo / Servicio:</label>
+          <input type="text" id="nueva-cita-motivo" placeholder="Ej: Vacunación Quíntuple, Baño, Control" class="w-full border border-slate-200 rounded-lg p-2 text-xs">
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="document.getElementById('modal-nueva-cita').classList.add('hidden')" class="px-3 py-1.5 rounded-lg border border-slate-200 font-semibold text-slate-600">Cancelar</button>
+        <button onclick="guardarNuevaCita()" class="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold shadow">Guardar Cita</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== MOTOR INDEXEDDB DE ALTO RENDIMIENTO (64-BIT) ==================== -->
   <script>
-    const DB_NAME = "PelitosVeterinaria_Enterprise_v3";
+    const DB_NAME = "PelitosVeterinaria_Enterprise_v4";
     const DB_VERSION = 1;
     let idb = null;
 
-    // Inicializar IndexedDB con almacenes y múltiples índices optimizados
+    // Inicializar IndexedDB con almacenes e índices extendidos
     function abrirIndexedDB() {
       return new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, DB_VERSION);
         req.onupgradeneeded = (e) => {
           const db = e.target.result;
+          if (!db.objectStoreNames.contains("citas")) {
+            const s = db.createObjectStore("citas", { keyPath: "id", autoIncrement: true });
+            s.createIndex("fecha", "fecha", { unique: false });
+            s.createIndex("estado", "estado", { unique: false });
+            s.createIndex("paciente", "paciente", { unique: false });
+            s.createIndex("cliente", "cliente", { unique: false });
+          }
           if (!db.objectStoreNames.contains("clientes")) {
             const s = db.createObjectStore("clientes", { keyPath: "id", autoIncrement: true });
             s.createIndex("documento", "documento", { unique: false });
@@ -463,14 +581,13 @@
         if (onProgreso) {
           onProgreso(procesados, registros.length);
         }
-        // Ceder el hilo de ejecución para que la interfaz nunca se congele
         await new Promise(r => setTimeout(r, 0));
       }
       return procesados;
     }
 
-    // Consulta Paginada Directa en Cursor (Ultra rápida: <15ms con 1 millón de registros)
-    function consultarPaginado(storeName, pagina = 1, tamanoPagina = 50, filtro = "") {
+    // Consulta Paginada Directa en Cursor (<15ms)
+    function consultarPaginado(storeName, pagina = 1, tamanoPagina = 50, filtro = "", filtroEstado = "") {
       return new Promise((resolve, reject) => {
         const tx = idb.transaction(storeName, "readonly");
         const store = tx.objectStore(storeName);
@@ -478,9 +595,9 @@
         let totalCoincidencias = 0;
         const offset = (pagina - 1) * tamanoPagina;
         const filtroMin = (filtro || "").toLowerCase().trim();
+        const estadoMin = (filtroEstado || "").toLowerCase().trim();
 
         const req = store.openCursor();
-        let cursorIndex = 0;
 
         req.onsuccess = (e) => {
           const cursor = e.target.result;
@@ -488,18 +605,20 @@
             const val = cursor.value;
             let coincide = true;
 
-            if (filtroMin) {
-              const str = (
-                (val.nombre || '') + ' ' + 
-                (val.documento || '') + ' ' + 
-                (val.celular || '') + ' ' + 
-                (val.hc || '') + ' ' + 
-                (val.propietario || '') + ' ' + 
-                (val.paciente || '') + ' ' + 
-                (val.comprobante || '') + ' ' + 
-                (val.item || '') + ' ' + 
-                (val.diagnostico || '')
-              ).toLowerCase();
+            // Filtro por estado exacto (para Citas pendientes, etc.)
+            if (estadoMin && val.estado) {
+              const estVal = String(val.estado).toLowerCase();
+              if (estadoMin === "pending" || estadoMin === "pendiente") {
+                if (!estVal.includes("pend")) coincide = false;
+              } else if (estadoMin === "confirmed" || estadoMin === "confirmada") {
+                if (!estVal.includes("conf")) coincide = false;
+              } else if (!estVal.includes(estadoMin)) {
+                coincide = false;
+              }
+            }
+
+            if (coincide && filtroMin) {
+              const str = Object.values(val).map(v => String(v || '')).join(' ').toLowerCase();
               coincide = str.includes(filtroMin);
             }
 
@@ -524,13 +643,21 @@
       });
     }
 
-    // Contar registros de forma instantánea
     function contarStore(storeName) {
       return new Promise((resolve) => {
         const tx = idb.transaction(storeName, "readonly");
         const req = tx.objectStore(storeName).count();
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(0);
+      });
+    }
+
+    function obtenerPorId(storeName, id) {
+      return new Promise((resolve, reject) => {
+        const tx = idb.transaction(storeName, "readonly");
+        const req = tx.objectStore(storeName).get(id);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
       });
     }
 
@@ -550,7 +677,7 @@
       return String(tel).replace(/\D/g, '');
     }
 
-    function enlaceWhatsAppSeguro(tel, nombreCliente, nombreMascota) {
+    function enlaceWhatsAppSeguro(tel, nombreCliente, nombreMascota, esCita = false, fechaCita = "") {
       const limpio = sanitizarTelefono(tel);
       let num = limpio;
       if (limpio.length === 9 && limpio.startsWith('9')) {
@@ -561,17 +688,23 @@
         return null;
       }
 
-      let msg = `Hola ${nombreCliente || ''}, le escribimos de Pelitos Veterinaria`;
-      if (nombreMascota) {
-        msg += ` con relación a su engreído(a) ${nombreMascota} 🐾.`;
+      let msg = "";
+      if (esCita) {
+        msg = `Hola ${nombreCliente || ''}, le recordamos de Pelitos Veterinaria que tiene una cita pendiente para su engreído(a) ${nombreMascota || ''} programada para el ${fechaCita || 'próximo turno'} 🐾. ¿Nos confirma su asistencia por favor?`;
       } else {
-        msg += ` para saludarle y ponernos a su disposición 🐾.`;
+        msg = `Hola ${nombreCliente || ''}, le escribimos de Pelitos Veterinaria`;
+        if (nombreMascota) {
+          msg += ` con relación a su engreído(a) ${nombreMascota} 🐾.`;
+        } else {
+          msg += ` para saludarle y ponernos a su disposición 🐾.`;
+        }
       }
       return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
     }
 
     // ==================== ESTADO Y PAGINACIÓN ====================
     const paginacion = {
+      citas: { pagina: 1, filtro: "", estado: "pending" },
       clientes: { pagina: 1, filtro: "" },
       mascotas: { pagina: 1, filtro: "" },
       atenciones: { pagina: 1, filtro: "" },
@@ -593,16 +726,37 @@
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         if (!valor) return;
+        paginacion.citas.filtro = valor;
+        paginacion.citas.estado = "";
         paginacion.clientes.filtro = valor;
         paginacion.mascotas.filtro = valor;
-        cambiarTab('clientes');
+        cambiarTab('citas');
       }, 300);
+    }
+
+    function filtrarCitasPorEstado(estado) {
+      paginacion.citas.estado = estado;
+      paginacion.citas.pagina = 1;
+
+      // Actualizar estilo botones
+      ['pending', 'confirmed', ''].forEach(st => {
+        const btn = document.getElementById(st ? `btn-filtro-citas-${st}` : 'btn-filtro-citas-todas');
+        if (btn) {
+          if (st === estado) {
+            btn.className = "px-3 py-1 font-bold rounded-md bg-amber-100 text-amber-800 transition";
+          } else {
+            btn.className = "px-3 py-1 font-semibold rounded-md text-slate-600 hover:text-slate-900 transition";
+          }
+        }
+      });
+
+      cargarTabla('citas');
     }
 
     // Cargar y renderizar tablas de forma paginada y segura
     async function cargarTabla(storeName) {
       const p = paginacion[storeName];
-      const res = await consultarPaginado(storeName, p.pagina, 50, p.filtro);
+      const res = await consultarPaginado(storeName, p.pagina, 50, p.filtro, p.estado || "");
       const tbody = document.getElementById('tabla-' + storeName);
       const paginador = document.getElementById('paginador-' + storeName);
       if (!tbody) return;
@@ -619,7 +773,30 @@
         const offsetIdx = (res.pagina - 1) * 50 + idx + 1;
         let filaHtml = '';
 
-        if (storeName === 'clientes') {
+        if (storeName === 'citas') {
+          const wa = enlaceWhatsAppSeguro(item.celular, item.cliente, item.paciente, true, item.fecha);
+          const esPendiente = String(item.estado || '').toLowerCase().includes('pend');
+          const badgeClass = esPendiente ? 'bg-amber-100 text-amber-800' : (String(item.estado || '').toLowerCase().includes('conf') ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700');
+
+          filaHtml = `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3.5 text-slate-700 font-semibold whitespace-nowrap">${sanitizarHTML(item.fecha)}</td>
+              <td class="p-3.5 font-bold text-slate-800">
+                🐾 ${sanitizarHTML(item.paciente || 'Paciente')}
+                <span class="text-xs font-normal text-slate-400">(${sanitizarHTML(item.hc || 'Sin HC')})</span>
+              </td>
+              <td class="p-3.5 font-medium text-slate-700">${sanitizarHTML(item.cliente || '—')}</td>
+              <td class="p-3.5 text-slate-600 font-mono">${sanitizarHTML(item.celular || '—')}</td>
+              <td class="p-3.5 text-slate-600">${sanitizarHTML(item.motivo || item.tipo || 'Cita médica')}</td>
+              <td class="p-3.5"><span class="px-2.5 py-0.5 rounded-full font-bold text-xs ${badgeClass}">${sanitizarHTML(item.estado || 'Pendiente')}</span></td>
+              <td class="p-3.5 text-right space-x-1">
+                ${wa ? `<a href="${wa}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Recordar Cita</a>` : ''}
+                <button onclick="cambiarEstadoCita(${item.id})" class="px-2 py-1 rounded bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs" title="Cambiar Estado">🔄</button>
+                <button onclick="verDetalleFicha('citas', ${item.id})" class="px-2 py-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-xs">👁️ Ver</button>
+              </td>
+            </tr>
+          `;
+        } else if (storeName === 'clientes') {
           const wa = enlaceWhatsAppSeguro(item.celular, item.nombre, null);
           filaHtml = `
             <tr class="hover:bg-slate-50 transition">
@@ -627,9 +804,11 @@
               <td class="p-3.5 font-bold text-slate-800">${sanitizarHTML(item.nombre)}</td>
               <td class="p-3.5 font-mono text-slate-600">${sanitizarHTML(item.documento)}</td>
               <td class="p-3.5 text-slate-600 font-mono">${sanitizarHTML(item.celular)}</td>
-              <td class="p-3.5 text-slate-500 truncate max-w-xs">${sanitizarHTML(item.direccion)}</td>
-              <td class="p-3.5 text-right">
-                ${wa ? `<a href="${wa}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>` : '<span class="text-slate-400">Sin cel</span>'}
+              <td class="p-3.5 text-slate-500 truncate max-w-xs">${sanitizarHTML(item.direccion || item.zona || '—')}</td>
+              <td class="p-3.5 text-teal-700 font-medium">${sanitizarHTML(item.mascotas_resumen || '—')}</td>
+              <td class="p-3.5 text-right space-x-1">
+                ${wa ? `<a href="${wa}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>` : '<span class="text-slate-400 text-xs">Sin cel</span>'}
+                <button onclick="verDetalleFicha('clientes', ${item.id})" class="px-2 py-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-xs">👁️ Ver Ficha</button>
               </td>
             </tr>
           `;
@@ -640,11 +819,12 @@
               <td class="p-3.5 font-mono font-bold text-teal-700">${sanitizarHTML(item.hc)}</td>
               <td class="p-3.5 font-bold text-slate-800">🐾 ${sanitizarHTML(item.nombre)}</td>
               <td class="p-3.5 text-slate-600">${sanitizarHTML(item.especie)} / ${sanitizarHTML(item.raza)}</td>
-              <td class="p-3.5 text-slate-600">${sanitizarHTML(item.sexo)}</td>
+              <td class="p-3.5 text-slate-600">${sanitizarHTML(item.sexo)} <span class="text-xs text-slate-400">(${sanitizarHTML(item.esterilizado || 'Intacto')})</span></td>
               <td class="p-3.5 font-medium text-slate-700">${sanitizarHTML(item.propietario)}</td>
               <td class="p-3.5 text-slate-600 font-mono">${sanitizarHTML(item.celular)}</td>
-              <td class="p-3.5 text-right">
-                ${wa ? `<a href="${wa}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>` : ''}
+              <td class="p-3.5 text-right space-x-1">
+                ${wa ? `<a href="${wa}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>` : ''}
+                <button onclick="verDetalleFicha('mascotas', ${item.id})" class="px-2 py-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-xs">👁️ Ver</button>
               </td>
             </tr>
           `;
@@ -657,17 +837,27 @@
               <td class="p-3.5"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold text-xs">${sanitizarHTML(item.tipo)}</span></td>
               <td class="p-3.5 text-slate-700 max-w-xs truncate" title="${sanitizarHTML(item.diagnostico || item.motivo)}">${sanitizarHTML(item.diagnostico || item.motivo)}</td>
               <td class="p-3.5 text-slate-600 max-w-xs truncate" title="${sanitizarHTML(item.tratamiento)}">${sanitizarHTML(item.tratamiento)}</td>
+              <td class="p-3.5 text-right">
+                <button onclick="verDetalleFicha('atenciones', ${item.id})" class="px-2 py-1 rounded bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold text-xs">👁️ Ficha Médica</button>
+              </td>
             </tr>
           `;
         } else if (storeName === 'ventas') {
           const tot = parseFloat(item.total) || 0;
+          const pend = parseFloat(item.pendiente) || 0;
           filaHtml = `
             <tr class="hover:bg-slate-50 transition">
               <td class="p-3.5 text-slate-600 whitespace-nowrap">${sanitizarHTML(item.fecha)}</td>
               <td class="p-3.5 font-mono font-semibold text-slate-800">${sanitizarHTML(item.comprobante)}</td>
               <td class="p-3.5 text-slate-700">${sanitizarHTML(item.cliente)}</td>
-              <td class="p-3.5 text-slate-600">${sanitizarHTML(item.item)}</td>
-              <td class="p-3.5 text-right font-bold text-slate-800 font-mono">S/. ${tot.toFixed(2)}</td>
+              <td class="p-3.5 text-slate-600 max-w-xs truncate">${sanitizarHTML(item.item)}</td>
+              <td class="p-3.5 font-bold text-slate-800 font-mono">S/. ${tot.toFixed(2)}</td>
+              <td class="p-3.5 font-semibold ${pend > 0 ? 'text-red-600 font-bold' : 'text-emerald-700'}">
+                ${pend > 0 ? `Debe S/. ${pend.toFixed(2)}` : sanitizarHTML(item.estado || 'Pagado')}
+              </td>
+              <td class="p-3.5 text-right">
+                <button onclick="verDetalleFicha('ventas', ${item.id})" class="px-2 py-1 rounded bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold text-xs">👁️ Ver</button>
+              </td>
             </tr>
           `;
         } else if (storeName === 'seguimientos') {
@@ -682,8 +872,9 @@
               <td class="p-3.5 font-semibold text-teal-800">${sanitizarHTML(item.motivo)}</td>
               <td class="p-3.5"><span class="px-2.5 py-1 rounded-full font-bold text-xs bg-amber-100 text-amber-800">${sanitizarHTML(item.estado)}</span></td>
               <td class="p-3.5 text-slate-600">${sanitizarHTML(item.nota)}</td>
-              <td class="p-3.5 text-right">
+              <td class="p-3.5 text-right space-x-1">
                 ${wa ? `<a href="${wa}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow-sm transition"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WhatsApp</a>` : ''}
+                <button onclick="verDetalleFicha('seguimientos', ${item.id})" class="px-2 py-1 rounded bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs">👁️ Ver</button>
               </td>
             </tr>
           `;
@@ -717,21 +908,158 @@
       cargarTabla(storeName);
     }
 
+    // Modal de Detalle Completo
+    async function verDetalleFicha(storeName, id) {
+      const item = await obtenerPorId(storeName, id);
+      if (!item) return;
+
+      const cuerpo = document.getElementById('modal-cuerpo');
+      document.getElementById('modal-titulo').innerText = `Ficha Completa (${storeName.toUpperCase()} #${id})`;
+      cuerpo.innerHTML = '';
+
+      const titulosLegibles = {
+        documento: "Documento de Identidad (DNI/RUC)",
+        nombre: "Nombre Completo",
+        celular: "Teléfono / Celular",
+        direccion: "Dirección Domiciliaria",
+        email: "Correo Electrónico",
+        zona: "Zona / Distrito",
+        fecha_registro: "Fecha de Registro",
+        fecha_nacimiento: "Fecha de Nacimiento",
+        observaciones: "Observaciones del Tutor",
+        etiquetas: "Etiquetas",
+        estado: "Estado",
+        mascotas_resumen: "Mascotas Registradas",
+        hc: "N° Historia Clínica",
+        especie: "Especie Animal",
+        raza: "Raza",
+        sexo: "Sexo",
+        color: "Color / Pelaje",
+        esterilizado: "Estado Reproductivo",
+        propietario: "Nombre del Propietario / Tutor",
+        fecha: "Fecha de Atención / Evento",
+        tipo: "Tipo de Atención / Evento",
+        paciente: "Paciente / Mascota",
+        motivo: "Motivo de Consulta / Atención",
+        anamnesis: "Anamnesis Completa",
+        constantes: "Constantes Fisiológicas (Temperatura / Peso)",
+        examen_clinico: "Examen Clínico Extendido",
+        examenes_auxiliares: "Exámenes Auxiliares / Laboratorio",
+        diagnostico: "Diagnóstico Clínico",
+        tratamiento: "Tratamiento Médico e Indicaciones",
+        pronostico: "Pronóstico Médico",
+        comprobante: "Comprobante de Pago",
+        item: "Producto / Servicio",
+        categoria: "Categoría",
+        subcategoria: "Subcategoría",
+        vendedor: "Vendedor / Atendido Por",
+        cantidad: "Cantidad",
+        precio_unitario: "Precio Unitario (S/.)",
+        subtotal: "Subtotal (S/.)",
+        igv: "IGV (S/.)",
+        total: "Total Facturado (S/.)",
+        costo: "Costo (S/.)",
+        utilidad: "Utilidad (S/.)",
+        pagado: "Monto Pagado (S/.)",
+        pendiente: "SALDO PENDIENTE POR COBRAR (S/.)",
+        tipo_pago: "Medio de Pago"
+      };
+
+      let htmlGrid = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">';
+      for (const [k, v] of Object.entries(item)) {
+        if (k === 'id' || !v) continue;
+        const label = titulosLegibles[k] || k.replace(/_/g, ' ').toUpperCase();
+        const esAlerta = k === 'pendiente' && parseFloat(v) > 0;
+        htmlGrid += `
+          <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <span class="text-[10px] uppercase font-bold text-slate-400 block">${label}</span>
+            <span class="text-xs font-semibold ${esAlerta ? 'text-red-600 font-bold text-sm' : 'text-slate-800'} break-words">${sanitizarHTML(v)}</span>
+          </div>
+        `;
+      }
+      htmlGrid += '</div>';
+
+      cuerpo.innerHTML = htmlGrid;
+      document.getElementById('modal-detalle').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function cerrarModalDetalle() {
+      document.getElementById('modal-detalle').classList.add('hidden');
+    }
+
+    // Modal Nueva Cita
+    function abrirModalNuevaCita() {
+      document.getElementById('modal-nueva-cita').classList.remove('hidden');
+    }
+
+    async function guardarNuevaCita() {
+      const fec = document.getElementById('nueva-cita-fecha').value;
+      const pac = document.getElementById('nueva-cita-paciente').value;
+      const cli = document.getElementById('nueva-cita-cliente').value;
+      const cel = document.getElementById('nueva-cita-celular').value;
+      const mot = document.getElementById('nueva-cita-motivo').value;
+
+      if (!fec || !pac) {
+        alert("Ingrese al menos fecha y nombre del paciente.");
+        return;
+      }
+
+      const tx = idb.transaction("citas", "readwrite");
+      tx.objectStore("citas").add({
+        fecha: fec.replace('T', ' '),
+        paciente: pac,
+        cliente: cli,
+        celular: sanitizarTelefono(cel),
+        motivo: mot || "Cita de control",
+        estado: "Pendiente"
+      });
+      tx.oncomplete = async () => {
+        document.getElementById('modal-nueva-cita').classList.add('hidden');
+        await actualizarDashboard();
+        cargarTabla('citas');
+        alert("¡Cita agendada exitosamente!");
+      };
+    }
+
+    async function cambiarEstadoCita(id) {
+      const item = await obtenerPorId("citas", id);
+      if (!item) return;
+
+      const nuevo = prompt("Seleccione nuevo estado para la cita (Pendiente, Confirmada, Atendida, Cancelada):", item.estado || "Confirmada");
+      if (!nuevo) return;
+
+      item.estado = nuevo;
+      const tx = idb.transaction("citas", "readwrite");
+      tx.objectStore("citas").put(item);
+      tx.oncomplete = async () => {
+        await actualizarDashboard();
+        cargarTabla('citas');
+      };
+    }
+
     // Actualizar Contadores del Dashboard
     async function actualizarDashboard() {
       const nCli = await contarStore('clientes');
       const nMas = await contarStore('mascotas');
       const nAtn = await contarStore('atenciones');
       const nVnt = await contarStore('ventas');
+      const nCit = await contarStore('citas');
 
+      // Contar citas pendientes
+      const resCitPend = await consultarPaginado('citas', 1, 1, "", "pending");
+      const nCitPend = resCitPend.total;
+
+      document.getElementById('stat-citas-pendientes').innerText = nCitPend.toLocaleString();
+      document.getElementById('badge-citas-pendientes-sidebar').innerText = nCitPend.toLocaleString();
       document.getElementById('stat-clientes').innerText = nCli.toLocaleString();
       document.getElementById('stat-mascotas').innerText = nMas.toLocaleString();
       document.getElementById('stat-atenciones').innerText = nAtn.toLocaleString();
       
-      const totalGlobal = nCli + nMas + nAtn + nVnt;
+      const totalGlobal = nCli + nMas + nAtn + nVnt + nCit;
       document.getElementById('badge-total-global').innerText = `${totalGlobal.toLocaleString()} Registros Totales`;
 
-      // Cargar 5 mascotas recientes en dashboard
+      // 5 Mascotas recientes en dashboard
       const res = await consultarPaginado('mascotas', 1, 5);
       const tbody = document.getElementById('tabla-resumen-dashboard');
       tbody.innerHTML = '';
@@ -756,7 +1084,7 @@
       lucide.createIcons();
     }
 
-    // ==================== PARSER DE CSV Y TEXTO ROBUSTO ====================
+    // ==================== PARSER DE CSV Y TEXTO CON TODOS LOS CAMPOS ====================
     function parsearLineaCSV(linea) {
       const res = [];
       let inicio = 0;
@@ -789,16 +1117,20 @@
         return;
       }
 
-      mostrarProgreso("Analizando y procesando texto...", 0);
+      mostrarProgreso("Analizando y extrayendo campos extendidos...", 0);
       const lineas = texto.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
 
-      const lotes = { clientes: [], mascotas: [], atenciones: [], ventas: [] };
+      const lotes = { citas: [], clientes: [], mascotas: [], atenciones: [], ventas: [] };
       let seccionActual = null;
       let encabezados = [];
 
       for (let i = 0; i < lineas.length; i++) {
         const l = lineas[i];
-        if (l.includes("NOMBRES Y APELLIDOS") && l.includes("DOCUMENTO")) {
+        if (l.includes("START_AT") || l.includes("START AT") || l.includes("FECHA CITA") || (l.includes("FECHA") && l.includes("PACIENTE") && l.includes("ESTADO") && l.includes("MOTIVO"))) {
+          seccionActual = "citas";
+          encabezados = parsearLineaCSV(l).map(h => h.toUpperCase().trim());
+          continue;
+        } else if (l.includes("NOMBRES Y APELLIDOS") && l.includes("DOCUMENTO")) {
           seccionActual = "clientes";
           encabezados = parsearLineaCSV(l).map(h => h.toUpperCase().trim());
           continue;
@@ -826,17 +1158,37 @@
         const obj = {};
         encabezados.forEach((h, idx) => { obj[h] = cols[idx] || ''; });
 
-        if (seccionActual === "clientes") {
+        if (seccionActual === "citas") {
+          lotes.citas.push({
+            fecha: (obj["START_AT"] || obj["FECHA"] || obj["FECHA Y HORA"] || '').trim(),
+            paciente: (obj["PACIENTE"] || obj["MASCOTA"] || '').trim(),
+            hc: (obj["HC"] || '').trim(),
+            cliente: (obj["CLIENTE"] || obj["PROPIETARIO"] || '').trim(),
+            celular: sanitizarTelefono(obj["CELULAR"] || obj["TELÉFONOS"]),
+            motivo: (obj["MOTIVO"] || obj["TIPO"] || 'Consulta médica').trim(),
+            veterinario: (obj["VETERINARIO"] || obj["DOCTOR"] || '').trim(),
+            estado: (obj["STATUS"] || obj["ESTADO"] || 'Pendiente').trim()
+          });
+        } else if (seccionActual === "clientes") {
           let nom = obj["NOMBRES Y APELLIDOS"] || obj["NOMBRE"] || '';
           if (nom.includes(',')) {
             const p = nom.split(',');
             nom = `${p[1].trim()} ${p[0].trim()}`.trim();
           }
           lotes.clientes.push({
+            fecha_registro: (obj["FECHA DE REGISTRO"] || '').trim(),
             documento: (obj["DOCUMENTO"] || obj["DNI"] || '').trim(),
             nombre: nom,
             celular: sanitizarTelefono(obj["TELÉFONOS"] || obj["CELULAR"]),
-            direccion: (obj["DIRECCIÓN"] || '').replace(/\|/g, '').trim()
+            email: (obj["EMAIL"] || obj["CORREO"] || '').trim(),
+            direccion: (obj["DIRECCIÓN"] || '').replace(/\|/g, '').trim(),
+            zona: (obj["ZONA"] || '').trim(),
+            fecha_nacimiento: (obj["FECHA DE NACIMIENTO"] || '').trim(),
+            etiquetas: (obj["ETIQUETAS"] || '').trim(),
+            observaciones: (obj["OBSERVACIONES"] || '').trim(),
+            origen: (obj["ORIGEN"] || '').trim(),
+            estado: (obj["ESTADO"] || 'Activo').trim(),
+            mascotas_resumen: (obj["MASCOTAS"] || '').trim()
           });
         } else if (seccionActual === "mascotas") {
           let prop = obj["PROPIETARIO"] || '';
@@ -845,11 +1197,16 @@
             prop = `${p[1].trim()} ${p[0].trim()}`.trim();
           }
           lotes.mascotas.push({
+            fecha_registro: (obj["FECHA DE REGISTRO"] || '').trim(),
             hc: (obj["N° HISTORIA CLÍNICA"] || obj["Nº HISTORIA CLÍNICA"] || obj["HC"] || '').trim(),
             nombre: (obj["NOMBRE"] || obj["MASCOTA"] || '').trim(),
             especie: (obj["ESPECIE"] || '').trim(),
             raza: (obj["RAZA"] || '').trim(),
             sexo: (obj["SEXO"] || '').trim(),
+            color: (obj["COLOR"] || '').trim(),
+            fecha_nacimiento: (obj["FECHA DE NACIMIENTO"] || '').trim(),
+            esterilizado: (obj["ESTERILIZACIÓN"] || '').trim(),
+            estado: (obj["ESTADO"] || 'Activo').trim(),
             propietario: prop,
             celular: sanitizarTelefono(obj["CELULAR DEL PROPIETARIO"] || obj["CELULAR"])
           });
@@ -859,29 +1216,61 @@
             tipo: (obj["TIPO DE ATENCIÓN"] || obj["TIPO"] || 'Consulta').trim(),
             hc: (obj["HC"] || '').trim(),
             paciente: (obj["PACIENTE"] || obj["MASCOTA"] || '').trim(),
-            motivo: (obj["MOTIVO DE ATENCIÓN"] || obj["ANAMNESIS"] || '').trim(),
-            diagnostico: (obj["DIAGNÓSTICO"] || obj["EXAMEN CLÍNICO EXTENDIDO"] || '').trim(),
-            tratamiento: (obj["TRATAMIENTO"] || '').trim()
+            especie: (obj["ESPECIE"] || '').trim(),
+            raza: (obj["RAZA"] || '').trim(),
+            propietario: (obj["PROPIETARIO"] || '').trim(),
+            motivo: (obj["MOTIVO DE ATENCIÓN"] || '').trim(),
+            anamnesis: (obj["ANAMNESIS"] || '').trim(),
+            constantes: (obj["CONSTANTES FISIOLÓGICAS"] || '').trim(),
+            examen_clinico: (obj["EXAMEN CLÍNICO EXTENDIDO"] || '').trim(),
+            examenes_auxiliares: (obj["EXÁMENES AUXILIARES"] || '').trim(),
+            diagnostico: (obj["DIAGNÓSTICO"] || '').trim(),
+            tratamiento: (obj["TRATAMIENTO"] || '').trim(),
+            pronostico: (obj["PRONÓSTICO"] || '').trim(),
+            veterinario: (obj["VETERINARIO"] || '').trim()
           });
         } else if (seccionActual === "ventas") {
           const tot = parseFloat(String(obj["TOTAL"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const pend = parseFloat(String(obj["PENDIENTE"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const pag = parseFloat(String(obj["PAGADO"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const sub = parseFloat(String(obj["SUBTOTAL"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const igv = parseFloat(String(obj["IGV"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const cost = parseFloat(String(obj["COSTO"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const util = parseFloat(String(obj["UTILIDAD"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const pu = parseFloat(String(obj["PRECIO UNITARIO"] || '0').replace(/[^0-9.]/g, '')) || 0;
+          const cant = parseFloat(String(obj["CANTIDAD"] || '1').replace(/[^0-9.]/g, '')) || 1;
+
           lotes.ventas.push({
             fecha: (obj["FECHA DE EMISIÓN"] || obj["FECHA"] || '').trim(),
+            fecha_contabilizacion: (obj["FECHA DE CONTABILIZACIÓN"] || '').trim(),
             comprobante: (obj["DOCUMENTO"] || obj["BOLETA/FACTURA"] || `${obj["SERIE"] || ''}-${obj["NÚMERO"] || ''}`).replace("BOLETA DE VENTA ELECTRONICA: ", "").trim(),
             cliente: (obj["CLIENTE"] || obj["DENOMINACIÓN"] || '').trim(),
             item: (obj["CONCEPTO"] || obj["PRODUCTO / SERVICIO"] || obj["ITEM"] || 'Venta General').trim(),
-            total: tot
+            categoria: (obj["CATEGORÍA"] || obj["LINEA"] || '').trim(),
+            subcategoria: (obj["SUBCATEGORÍA"] || '').trim(),
+            vendedor: (obj["VENDEDOR"] || '').trim(),
+            cantidad: cant,
+            precio_unitario: pu,
+            subtotal: sub,
+            igv: igv,
+            total: tot,
+            costo: cost,
+            utilidad: util,
+            pagado: pag,
+            pendiente: pend,
+            tipo_pago: (obj["TIPO DE PAGO"] || '').trim(),
+            estado: (obj["ESTADO"] || 'PAGADO').trim()
           });
         }
       }
 
       // Ingestar a IndexedDB
       let insertados = 0;
-      for (const k of ['clientes', 'mascotas', 'atenciones', 'ventas']) {
+      for (const k of ['citas', 'clientes', 'mascotas', 'atenciones', 'ventas']) {
         if (lotes[k].length > 0) {
           insertados += await insertarLote(k, lotes[k], (proc, tot) => {
             const pct = Math.round((proc / tot) * 100);
-            mostrarProgreso(`Guardando ${k}... (${proc.toLocaleString()} / ${tot.toLocaleString()})`, pct);
+            mostrarProgreso(`Almacenando ${k}... (${proc.toLocaleString()} / ${tot.toLocaleString()})`, pct);
           });
         }
       }
@@ -889,8 +1278,9 @@
       ocultarProgreso();
       document.getElementById('textarea-pegar-csv').value = '';
       await actualizarDashboard();
-      alert(`¡Texto procesado con éxito! Se integraron ${insertados.toLocaleString()} registros en la base.`);
-      cambiarTab('dashboard');
+      alert(`¡Texto procesado con éxito! Se integraron ${insertados.toLocaleString()} registros con todos sus datos extendidos.`);
+      if (lotes.citas.length > 0) cambiarTab('citas');
+      else cambiarTab('dashboard');
     }
 
     // ==================== CARGA DE ARCHIVOS EXCEL (SHEETJS) ====================
@@ -932,7 +1322,7 @@
           let headerIdx = 0;
           for (let i = 0; i < Math.min(15, filas.length); i++) {
             const str = filas[i].map(x => String(x || '').toLowerCase()).join(' ');
-            if (str.includes('documento') || str.includes('hc') || str.includes('paciente') || str.includes('atencion') || str.includes('total') || str.includes('comprobante')) {
+            if (str.includes('documento') || str.includes('hc') || str.includes('paciente') || str.includes('atencion') || str.includes('total') || str.includes('comprobante') || str.includes('cita')) {
               headerIdx = i;
               break;
             }
@@ -942,7 +1332,8 @@
           const headerStr = headers.join(' ');
           let storeName = "clientes";
 
-          if (headerStr.includes("HISTORIA") || headerStr.includes("ESPECIE")) storeName = "mascotas";
+          if (headerStr.includes("CITA") || headerStr.includes("START_AT")) storeName = "citas";
+          else if (headerStr.includes("HISTORIA") || headerStr.includes("ESPECIE")) storeName = "mascotas";
           else if (headerStr.includes("ATENCIÓN") || headerStr.includes("DIAGNÓSTICO")) storeName = "atenciones";
           else if (headerStr.includes("TOTAL") || headerStr.includes("COMPROBANTE") || headerStr.includes("VENTA")) storeName = "ventas";
 
@@ -953,17 +1344,37 @@
             const obj = {};
             headers.forEach((h, cIdx) => { if (h) obj[h] = r[cIdx] || ''; });
 
-            if (storeName === "clientes") {
+            if (storeName === "citas") {
+              registros.push({
+                fecha: String(obj["START_AT"] || obj["FECHA"] || '').trim(),
+                paciente: String(obj["PACIENTE"] || obj["MASCOTA"] || '').trim(),
+                hc: String(obj["HC"] || '').trim(),
+                cliente: String(obj["CLIENTE"] || obj["PROPIETARIO"] || '').trim(),
+                celular: sanitizarTelefono(obj["CELULAR"] || obj["TELÉFONOS"]),
+                motivo: String(obj["MOTIVO"] || obj["TIPO"] || 'Consulta médica').trim(),
+                veterinario: String(obj["VETERINARIO"] || '').trim(),
+                estado: String(obj["STATUS"] || obj["ESTADO"] || 'Pendiente').trim()
+              });
+            } else if (storeName === "clientes") {
               let nom = String(obj["NOMBRES Y APELLIDOS"] || obj["NOMBRE"] || '').trim();
               if (nom.includes(',')) {
                 const p = nom.split(',');
                 nom = `${p[1].trim()} ${p[0].trim()}`.trim();
               }
               registros.push({
+                fecha_registro: String(obj["FECHA DE REGISTRO"] || '').trim(),
                 documento: String(obj["DOCUMENTO"] || obj["DNI"] || '').trim(),
                 nombre: nom,
                 celular: sanitizarTelefono(obj["TELÉFONOS"] || obj["CELULAR"]),
-                direccion: String(obj["DIRECCIÓN"] || '').replace(/\|/g, '').trim()
+                email: String(obj["EMAIL"] || '').trim(),
+                direccion: String(obj["DIRECCIÓN"] || '').replace(/\|/g, '').trim(),
+                zona: String(obj["ZONA"] || '').trim(),
+                fecha_nacimiento: String(obj["FECHA DE NACIMIENTO"] || '').trim(),
+                etiquetas: String(obj["ETIQUETAS"] || '').trim(),
+                observaciones: String(obj["OBSERVACIONES"] || '').trim(),
+                origen: String(obj["ORIGEN"] || '').trim(),
+                estado: String(obj["ESTADO"] || 'Activo').trim(),
+                mascotas_resumen: String(obj["MASCOTAS"] || '').trim()
               });
             } else if (storeName === "mascotas") {
               let prop = String(obj["PROPIETARIO"] || '').trim();
@@ -972,11 +1383,16 @@
                 prop = `${p[1].trim()} ${p[0].trim()}`.trim();
               }
               registros.push({
+                fecha_registro: String(obj["FECHA DE REGISTRO"] || '').trim(),
                 hc: String(obj["N° HISTORIA CLÍNICA"] || obj["Nº HISTORIA CLÍNICA"] || obj["HC"] || '').trim(),
                 nombre: String(obj["NOMBRE"] || obj["MASCOTA"] || '').trim(),
                 especie: String(obj["ESPECIE"] || '').trim(),
                 raza: String(obj["RAZA"] || '').trim(),
                 sexo: String(obj["SEXO"] || '').trim(),
+                color: String(obj["COLOR"] || '').trim(),
+                fecha_nacimiento: String(obj["FECHA DE NACIMIENTO"] || '').trim(),
+                esterilizado: String(obj["ESTERILIZACIÓN"] || '').trim(),
+                estado: String(obj["ESTADO"] || 'Activo').trim(),
                 propietario: prop,
                 celular: sanitizarTelefono(obj["CELULAR DEL PROPIETARIO"] || obj["CELULAR"])
               });
@@ -986,23 +1402,55 @@
                 tipo: String(obj["TIPO DE ATENCIÓN"] || obj["TIPO"] || 'Consulta').trim(),
                 hc: String(obj["HC"] || '').trim(),
                 paciente: String(obj["PACIENTE"] || obj["MASCOTA"] || '').trim(),
+                especie: String(obj["ESPECIE"] || '').trim(),
+                raza: String(obj["RAZA"] || '').trim(),
+                propietario: String(obj["PROPIETARIO"] || '').trim(),
                 motivo: String(obj["MOTIVO DE ATENCIÓN"] || '').trim(),
+                anamnesis: String(obj["ANAMNESIS"] || '').trim(),
+                constantes: String(obj["CONSTANTES FISIOLÓGICAS"] || '').trim(),
+                examen_clinico: String(obj["EXAMEN CLÍNICO EXTENDIDO"] || '').trim(),
+                examenes_auxiliares: String(obj["EXÁMENES AUXILIARES"] || '').trim(),
                 diagnostico: String(obj["DIAGNÓSTICO"] || '').trim(),
-                tratamiento: String(obj["TRATAMIENTO"] || '').trim()
+                tratamiento: String(obj["TRATAMIENTO"] || '').trim(),
+                pronostico: String(obj["PRONÓSTICO"] || '').trim(),
+                veterinario: String(obj["VETERINARIO"] || '').trim()
               });
             } else if (storeName === "ventas") {
               const tot = parseFloat(String(obj["TOTAL"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const pend = parseFloat(String(obj["PENDIENTE"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const pag = parseFloat(String(obj["PAGADO"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const sub = parseFloat(String(obj["SUBTOTAL"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const igv = parseFloat(String(obj["IGV"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const cost = parseFloat(String(obj["COSTO"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const util = parseFloat(String(obj["UTILIDAD"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const pu = parseFloat(String(obj["PRECIO UNITARIO"] || '0').replace(/[^0-9.]/g, '')) || 0;
+              const cant = parseFloat(String(obj["CANTIDAD"] || '1').replace(/[^0-9.]/g, '')) || 1;
+
               registros.push({
                 fecha: String(obj["FECHA DE EMISIÓN"] || obj["FECHA"] || '').trim(),
+                fecha_contabilizacion: String(obj["FECHA DE CONTABILIZACIÓN"] || '').trim(),
                 comprobante: String(obj["DOCUMENTO"] || obj["BOLETA/FACTURA"] || '').trim(),
                 cliente: String(obj["CLIENTE"] || obj["DENOMINACIÓN"] || '').trim(),
                 item: String(obj["CONCEPTO"] || obj["ITEM"] || 'Venta General').trim(),
-                total: tot
+                categoria: String(obj["CATEGORÍA"] || obj["LINEA"] || '').trim(),
+                subcategoria: String(obj["SUBCATEGORÍA"] || '').trim(),
+                vendedor: String(obj["VENDEDOR"] || '').trim(),
+                cantidad: cant,
+                precio_unitario: pu,
+                subtotal: sub,
+                igv: igv,
+                total: tot,
+                costo: cost,
+                utilidad: util,
+                pagado: pag,
+                pendiente: pend,
+                tipo_pago: String(obj["TIPO DE PAGO"] || '').trim(),
+                estado: String(obj["ESTADO"] || 'PAGADO').trim()
               });
             }
           }
 
-          mostrarProgreso("Guardando registros en IndexedDB...", 50);
+          mostrarProgreso("Guardando registros enriquecidos en IndexedDB...", 50);
           await insertarLote(storeName, registros, (proc, tot) => {
             const pct = 50 + Math.round((proc / tot) * 50);
             mostrarProgreso(`Almacenando ${proc.toLocaleString()} de ${tot.toLocaleString()}...`, pct);
@@ -1010,7 +1458,7 @@
 
           ocultarProgreso();
           await actualizarDashboard();
-          alert(`¡Ingesta exitosa! Se guardaron ${registros.length.toLocaleString()} registros en ${storeName}.`);
+          alert(`¡Ingesta exitosa! Se guardaron ${registros.length.toLocaleString()} registros con todos sus datos en ${storeName}.`);
           cambiarTab(storeName);
         } catch(err) {
           ocultarProgreso();
@@ -1021,14 +1469,14 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // ==================== TEST DE ESTRÉS DE 1 MILLÓN DE REGISTROS ====================
+    // ==================== TEST DE ESTRÉS DE 1 MILLÓN ====================
     async function abrirModalBenchmark() {
       const ok = confirm("¿Desea generar 1,000,000 de registros sintéticos en IndexedDB para verificar que no se lagea la aplicación?");
       if (!ok) return;
 
       mostrarProgreso("Iniciando prueba de carga masiva de 1,000,000 registros...", 0);
       const startTime = performance.now();
-      const LOTES_TOTALES = 200; // 200 * 5,000 = 1,000,000 registros
+      const LOTES_TOTALES = 200;
       let insertados = 0;
 
       for (let loteIdx = 0; loteIdx < LOTES_TOTALES; loteIdx++) {
@@ -1039,7 +1487,9 @@
             documento: String(10000000 + (globalId % 90000000)),
             nombre: `CLIENTE BENCHMARK ${globalId}`,
             celular: `9${String(10000000 + (globalId % 90000000)).substring(0, 8)}`,
-            direccion: `AV. PRINCIPAL ${globalId}, HUANUCO`
+            direccion: `AV. PRINCIPAL ${globalId}, HUANUCO`,
+            email: `cliente${globalId}@ejemplo.pe`,
+            estado: 'Activo'
           });
         }
 
@@ -1079,7 +1529,7 @@
 
     async function purgarBaseDatos() {
       if (confirm("¿Está seguro de eliminar TODOS los registros de la base de datos?")) {
-        const stores = ["clientes", "mascotas", "atenciones", "ventas", "seguimientos"];
+        const stores = ["citas", "clientes", "mascotas", "atenciones", "ventas", "seguimientos"];
         const tx = idb.transaction(stores, "readwrite");
         stores.forEach(s => tx.objectStore(s).clear());
         tx.oncomplete = async () => {
@@ -1091,10 +1541,10 @@
     }
 
     async function exportarCopiaSeguridadJSON() {
-      const stores = ["clientes", "mascotas", "atenciones", "ventas", "seguimientos"];
+      const stores = ["citas", "clientes", "mascotas", "atenciones", "ventas", "seguimientos"];
       const backupData = {};
       for (const s of stores) {
-        const res = await consultarPaginado(s, 1, 50000); // Hasta 50k
+        const res = await consultarPaginado(s, 1, 50000);
         backupData[s] = res.datos;
       }
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
@@ -1117,6 +1567,7 @@
 
       const titulos = {
         dashboard: "Panel de Control General",
+        citas: "Citas & Agenda de Pacientes (VetPraxis)",
         clientes: "Cartera y Directorio de Clientes",
         mascotas: "Padrón de Historias Clínicas y Mascotas",
         atenciones: "Atenciones Clínicas y Consultas",
@@ -1126,7 +1577,7 @@
       };
       document.getElementById('header-titulo').innerText = titulos[tabId] || "Panel de Administración";
 
-      if (['clientes', 'mascotas', 'atenciones', 'ventas', 'seguimientos'].includes(tabId)) {
+      if (['citas', 'clientes', 'mascotas', 'atenciones', 'ventas', 'seguimientos'].includes(tabId)) {
         cargarTabla(tabId);
       } else if (tabId === 'dashboard') {
         actualizarDashboard();
