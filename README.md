@@ -6,9 +6,9 @@ Sistema profesional de fidelización, administración de historias clínicas y s
 
 ## 🚀 Despliegue en la Nube (Streamlit Cloud)
 El proyecto está completamente preparado para ser compartido mediante GitHub:
-1. Conecte su repositorio: `https://github.com/ediczon2006/administracion_de_clientes_pelitos_veterinaria`
+1. Conecte su repositorio: `https://github.com/ediczon2006/-administracion_de_clientes_pelitos_veterinaria`
 2. En [Streamlit Community Cloud](https://share.streamlit.io), seleccione:
-   - **Repository:** `ediczon2006/administracion_de_clientes_pelitos_veterinaria`
+   - **Repository:** `ediczon2006/-administracion_de_clientes_pelitos_veterinaria`
    - **Branch:** `main`
    - **Main file path:** `app.py`
 3. ¡Listo! La aplicación detecta automáticamente entornos de solo lectura y gestiona los respaldos de forma segura.
