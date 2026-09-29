@@ -1,0 +1,17 @@
+# Datos reales de clientes (Privacidad protegida)
+database/*.db
+data/originales/*
+data/procesados/*
+backup/*
+!**/.gitkeep
+
+# Entornos virtuales y caché
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+
+# Archivos de pruebas locales
+tests/data_pruebas_reales/*

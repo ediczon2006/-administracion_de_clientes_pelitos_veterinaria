@@ -1,0 +1,50 @@
+[
+  {
+    "id": "vacuna_anual",
+    "nombre": "Recordatorio de Vacunación Anual (Perros y Gatos)",
+    "origen": "atenciones",
+    "criterio_tipo": "Vacuna",
+    "intervalo_dias": 365,
+    "tolerancia_previa_dias": 15,
+    "accion": "Llamar o enviar WhatsApp para programar refuerzo de vacuna.",
+    "aprobado_por": null,
+    "fecha_aprobacion": null,
+    "activa": false
+  },
+  {
+    "id": "control_post_cirugia",
+    "nombre": "Control Postquirúrgico (Esterilización / Cirugía)",
+    "origen": "atenciones",
+    "criterio_tipo": "Cirugía",
+    "intervalo_dias": 7,
+    "tolerancia_previa_dias": 0,
+    "accion": "Verificar cicatrización, retiro de puntos y estado general.",
+    "aprobado_por": null,
+    "fecha_aprobacion": null,
+    "activa": false
+  },
+  {
+    "id": "antiparasitario_trimestral",
+    "nombre": "Control Antiparasitario Interno / Externo",
+    "origen": "ventas",
+    "criterio_tipo": "Farmacia",
+    "intervalo_dias": 90,
+    "tolerancia_previa_dias": 7,
+    "accion": "Recordar pastilla antiparasitaria o pipeta preventiva.",
+    "aprobado_por": null,
+    "fecha_aprobacion": null,
+    "activa": false
+  },
+  {
+    "id": "reactivacion_inactivos",
+    "nombre": "Reactivación de Pacientes sin Visitas > 180 Días",
+    "origen": "atenciones",
+    "criterio_tipo": "Consulta",
+    "intervalo_dias": 180,
+    "tolerancia_previa_dias": 0,
+    "accion": "Campaña de fidelización y chequeo preventivo.",
+    "aprobado_por": null,
+    "fecha_aprobacion": null,
+    "activa": false
+  }
+]
