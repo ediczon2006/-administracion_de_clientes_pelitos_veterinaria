@@ -10,6 +10,7 @@ from pathlib import Path
 import urllib.parse
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from modules import (backup, buscador, config, dashboard, database, demo,
                      ficha, importador, normalizacion, reglas, relaciones,
@@ -92,6 +93,7 @@ with st.sidebar:
     menu = st.radio(
         "Menú de Navegación",
         [
+            "📁 Pelitos Docs (Biblioteca Empresarial)",
             "🏠 Inicio",
             "📊 Dashboard & Métricas",
             "🔍 Búsqueda & Ficha 360°",
@@ -126,8 +128,18 @@ with st.sidebar:
                 else:
                     st.error(res_demo["mensaje"])
 
+# ---------------------------------------------------------------- 0. PELITOS DOCS
+if menu == "📁 Pelitos Docs (Biblioteca Empresarial)":
+    html_file = Path("index.html")
+    if html_file.exists():
+        with open(html_file, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        components.html(html_content, height=940, scrolling=True)
+    else:
+        st.error("No se encontró el archivo index.html de Pelitos Docs.")
+
 # ---------------------------------------------------------------- 1. INICIO
-if menu == "🏠 Inicio":
+elif menu == "🏠 Inicio":
     st.markdown('<div class="main-header">🐾 Panel Central - Pelitos Veterinaria</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Gestión de historias clínicas, cartera de clientes y fidelización post-atención.</div>', unsafe_allow_html=True)
     
