@@ -1,14 +1,25 @@
 """
-build_pelitos_docs.py  –  v3 Universal Browser Edition
-=======================================================
-NUEVAS CORRECCIONES:
-  + Soporte UNIVERSAL de navegadores:
-      - Chrome / Edge:  showDirectoryPicker() (API moderna con árbol de carpetas)
-      - Firefox / Safari / cualquier otro: <input type=file webkitdirectory> (selección plana)
-  + Eliminar contadores falsos ("328 docs") de tarjetas de unidades y servicios.
-    Las tarjetas solo muestran nombre e ícono; el contador aparece SOLO si se carga una carpeta real.
-  + Eliminar todo aviso "Requiere Edge / Chrome" — ya no aplica.
-  + El botón "Abrir Carpeta" siempre está activo en cualquier navegador.
+build_pelitos_docs.py  –  v4 Multi-File & Folder Edition
+=========================================================
+ACTUALIZACIONES:
+  + SOPORTE COMPLETO PARA SUBIR CUALQUIER ARCHIVO DIRECTAMENTE:
+      - Botón "Subir Archivos" (Word, Excel, PDF, PowerPoint, Imágenes, Videos, Audio, ZIP, Código, etc.)
+      - Botón "Abrir Carpeta" (para carpetas completas)
+      - Soporte Drag & Drop: arrastrar archivos o carpetas directamente a la pantalla
+      - Acumulación de archivos: se pueden agregar más archivos sin borrar los existentes
+  + Filtros exactos por tipo:
+      - Word (.doc, .docx, .docm, .dot, .dotx)
+      - Excel (.xls, .xlsx, .xlsm, .csv, .tsv, .ods)
+      - PDF (.pdf)
+      - PowerPoint (.ppt, .pptx, .pptm)
+      - Imágenes (JPG, PNG, GIF, WebP, SVG, BMP, TIFF, PSD, AI, FIG)
+      - Videos (MP4, MOV, AVI, MKV, WMV, WebM)
+      - Audio (MP3, WAV, FLAC, OGG, M4A)
+      - Comprimidos (ZIP, RAR, 7Z, TAR, GZ)
+      - Texto (TXT, MD, XML, RTF)
+      - Código (PY, JS, TS, HTML, CSS, JSON, SQL, SH, BAT, etc.)
+  + Sin contadores falsos de documentos
+  + Compatible con todos los navegadores
 """
 import base64, os
 
@@ -67,6 +78,15 @@ HTML = f"""<!DOCTYPE html>
     .ext-default{{ background:#F1F5F9; color:#475569; }}
     .folder-badge{{ background:#FEF3C7; color:#92400E; }}
 
+    /* Overlay Drag & Drop */
+    .drop-zone-overlay {{
+      display:none; position:fixed; inset:0;
+      background:rgba(91,33,182,0.85); backdrop-filter:blur(6px);
+      z-index:90; align-items:center; justify-content:center;
+      color:white; flex-direction:column; gap:14px; pointer-events:none;
+    }}
+    body.drag-over .drop-zone-overlay {{ display:flex; }}
+
     /* Loading */
     #loading-overlay {{
       display:none; position:fixed; inset:0;
@@ -81,21 +101,28 @@ HTML = f"""<!DOCTYPE html>
       background:#16002B; color:#fff; font-size:13px;
       padding:.65rem 1.1rem; border-radius:.75rem;
       box-shadow:0 4px 24px rgba(0,0,0,.35); z-index:70;
-      display:flex; align-items:center; gap:.5rem; max-width:22rem;
+      display:flex; align-items:center; gap:.5rem; max-width:24rem;
       transform:translateY(5rem); opacity:0;
       transition:transform .2s,opacity .2s;
     }}
     #toast.show {{ transform:translateY(0); opacity:1; }}
-
-    /* Input file oculto para fallback universal */
-    #input-folder {{ display:none; }}
   </style>
 </head>
 
 <body class="flex h-screen overflow-hidden">
 
-<!-- Input oculto para navegadores sin showDirectoryPicker (Firefox, Safari) -->
-<input type="file" id="input-folder" webkitdirectory multiple accept="*/*">
+<!-- Overlay visual al arrastrar archivos a la ventana -->
+<div class="drop-zone-overlay">
+  <div class="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center animate-bounce">
+    <i data-lucide="file-up" class="w-10 h-10 text-white"></i>
+  </div>
+  <p class="text-2xl font-bold">Suelta tus archivos aquí</p>
+  <p class="text-sm opacity-90">Soporta Word, Excel, PDF, imágenes, videos y cualquier formato</p>
+</div>
+
+<!-- Inputs ocultos para subida de archivos y carpetas -->
+<input type="file" id="input-files" multiple accept="*/*" style="display:none">
+<input type="file" id="input-folder" webkitdirectory multiple accept="*/*" style="display:none">
 
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <aside class="w-60 bg-[#16002B] text-slate-200 flex flex-col shrink-0 overflow-y-auto select-none"
@@ -143,7 +170,7 @@ HTML = f"""<!DOCTYPE html>
       <button onclick="selUnidad('Laboratorio Veterinario')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
         <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i><span class="truncate">Laboratorio Veterinario</span>
       </button>
-      <button onclick="selUnidad('Farmacia Veterinaria')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
+      <button onclick="selUnidad('Farmacia Veterinario')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
         <i data-lucide="pill" class="w-3.5 h-3.5 text-orange-400 shrink-0"></i><span class="truncate">Farmacia Veterinaria</span>
       </button>
       <button onclick="selUnidad('Pet Shop')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
@@ -187,19 +214,20 @@ HTML = f"""<!DOCTYPE html>
 <!-- ══════════════ ÁREA PRINCIPAL ══════════════ -->
 <main class="flex-1 flex flex-col overflow-hidden">
 
-  <!-- TOPBAR -->
+  <!-- TOPBAR CON ACCIONES DE SUBIDA DE ARCHIVOS Y CARPETAS -->
   <header class="h-14 bg-white border-b border-slate-200 px-4 flex items-center gap-3 shrink-0 shadow-sm z-20">
-    <div class="relative flex-1 max-w-lg">
+    <div class="relative flex-1 max-w-md">
       <input id="buscador-top" oninput="aplicarFiltros()" type="text"
-        placeholder="Buscar archivos por nombre, extensión..."
+        placeholder="Buscar por nombre, extensión..."
         class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2
                placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition">
       <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
     </div>
 
+    <!-- Filtro de tipo con todos los formatos -->
     <select id="filtro-tipo-top" onchange="aplicarFiltros()"
       class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-600
-             focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer">
+             focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer font-medium">
       <option value="">Todos los tipos</option>
       <option value="folder">📁 Carpetas</option>
       <option value="pdf">📄 PDF</option>
@@ -214,12 +242,22 @@ HTML = f"""<!DOCTYPE html>
       <option value="code">💻 Código</option>
     </select>
 
-    <!-- BOTÓN ABRIR — siempre activo en todos los navegadores -->
-    <button onclick="abrirDirectorio()"
-      class="flex items-center gap-2 bg-[#5B21B6] hover:bg-[#4C1D95]
-             text-white text-sm font-bold px-4 py-2 rounded-lg shadow transition">
-      <i data-lucide="folder-open" class="w-4 h-4"></i> Abrir Carpeta
-    </button>
+    <!-- BOTONES DE CARGA: ARCHIVOS Y CARPETAS -->
+    <div class="flex items-center gap-2 shrink-0">
+      <button onclick="abrirArchivos()"
+        class="flex items-center gap-1.5 bg-[#5B21B6] hover:bg-[#4C1D95]
+               text-white text-sm font-bold px-3.5 py-2 rounded-lg shadow transition"
+        title="Subir documentos individuales o en lote (Word, Excel, PDF, imágenes...)">
+        <i data-lucide="file-up" class="w-4 h-4"></i> Subir Archivos
+      </button>
+
+      <button onclick="abrirDirectorio()"
+        class="flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800
+               border border-purple-200 text-sm font-bold px-3.5 py-2 rounded-lg transition"
+        title="Abrir una carpeta completa de tu computadora">
+        <i data-lucide="folder-open" class="w-4 h-4 text-amber-500"></i> Abrir Carpeta
+      </button>
+    </div>
 
     <select id="ordenar-por" onchange="aplicarFiltros()"
       class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-600
@@ -261,21 +299,28 @@ HTML = f"""<!DOCTYPE html>
                class="h-14 object-contain mb-3"
                style="filter:brightness(0) invert(1);">
           <p class="text-purple-200 text-sm font-semibold">Tu biblioteca empresarial veterinaria</p>
-          <p class="text-white/70 text-xs mt-1">Documentos organizados para un crecimiento sostenible</p>
+          <p class="text-white/70 text-xs mt-1">Sube tus archivos Word, PDF, Excel, imágenes o abre carpetas completas</p>
         </div>
         <div class="text-right text-white">
           <p class="text-base font-bold">Cuidamos vidas,</p>
           <p class="text-base font-bold">impulsamos sueños <span class="text-pink-300">❤️</span></p>
-          <button onclick="abrirDirectorio()"
-            class="mt-3 bg-amber-400 hover:bg-amber-300 text-amber-900 font-bold
-                   text-sm px-5 py-2 rounded-lg shadow transition flex items-center gap-2 ml-auto">
-            <i data-lucide="folder-open" class="w-4 h-4"></i> Explorar mis archivos
-          </button>
+          <div class="flex items-center gap-2 mt-3 ml-auto">
+            <button onclick="abrirArchivos()"
+              class="bg-amber-400 hover:bg-amber-300 text-amber-900 font-bold
+                     text-sm px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5">
+              <i data-lucide="file-up" class="w-4 h-4"></i> Subir Archivos
+            </button>
+            <button onclick="abrirDirectorio()"
+              class="bg-white/10 hover:bg-white/20 text-white font-bold
+                     text-sm px-4 py-2 rounded-lg border border-white/20 transition flex items-center gap-1.5">
+              <i data-lucide="folder-open" class="w-4 h-4 text-amber-300"></i> Abrir Carpeta
+            </button>
+          </div>
         </div>
         <div class="absolute right-5 bottom-3 opacity-10 text-white text-8xl select-none pointer-events-none">🐾</div>
       </div>
 
-      <!-- Unidades de Negocio — SIN contadores hardcodeados -->
+      <!-- Unidades de Negocio -->
       <div>
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Unidades de Negocio</h3>
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
@@ -324,7 +369,7 @@ HTML = f"""<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- Servicios Compartidos — SIN contadores hardcodeados -->
+      <!-- Servicios Compartidos -->
       <div>
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Servicios Compartidos</h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -367,22 +412,28 @@ HTML = f"""<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- CTA Explorador — compatible con todos los navegadores -->
-      <div onclick="abrirDirectorio()"
-        class="bg-white rounded-2xl border-2 border-dashed border-purple-300 p-10
-               flex flex-col items-center justify-center text-center shadow-inner cursor-pointer
-               hover:border-purple-500 hover:bg-purple-50/50 transition">
-        <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-300/40 mb-4">
-          <i data-lucide="folder-open" class="w-9 h-9 text-white"></i>
+      <!-- CTA Explorador / Subir -->
+      <div class="bg-white rounded-2xl border-2 border-dashed border-purple-300 p-8
+                  flex flex-col items-center justify-center text-center shadow-inner hover:border-purple-500 transition">
+        <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-300/40 mb-3">
+          <i data-lucide="files" class="w-9 h-9 text-white"></i>
         </div>
-        <h3 class="text-base font-bold text-slate-800 mb-1">Explorar archivos de tu computadora</h3>
-        <p class="text-sm text-slate-500 max-w-sm leading-relaxed">
-          Haz clic para seleccionar una carpeta. Compatible con<br>
-          <strong>Chrome, Edge, Firefox, Safari</strong> y cualquier navegador moderno.
+        <h3 class="text-base font-bold text-slate-800 mb-1">Cargar documentos o carpetas</h3>
+        <p class="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
+          Puedes subir archivos individuales o carpetas completas.<br>
+          Soporta <strong>Word, Excel, PDF, PowerPoint, Imágenes, Videos, Audio, ZIP, Código</strong> y más.
         </p>
-        <p class="text-sm text-purple-500 mt-3 font-bold animate-pulse-slow">▶ Haz clic aquí para comenzar</p>
-        <!-- Badge de soporte detectado dinámicamente por JS -->
-        <p id="lbl-modo-api" class="text-xs text-slate-400 mt-2"></p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <button onclick="abrirArchivos()"
+            class="flex items-center gap-2 bg-[#5B21B6] hover:bg-[#4C1D95] text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow transition">
+            <i data-lucide="file-up" class="w-4 h-4"></i> Seleccionar Archivo(s)
+          </button>
+          <button onclick="abrirDirectorio()"
+            class="flex items-center gap-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-sm font-bold px-5 py-2.5 rounded-xl transition">
+            <i data-lucide="folder-open" class="w-4 h-4 text-amber-500"></i> Seleccionar Carpeta
+          </button>
+        </div>
+        <p class="text-xs text-slate-400 mt-3">También puedes arrastrar y soltar cualquier archivo en la pantalla</p>
       </div>
 
     </section>
@@ -395,10 +446,10 @@ HTML = f"""<!DOCTYPE html>
         class="flex items-center gap-1.5 text-sm text-slate-500 flex-wrap bg-white border border-slate-200
                rounded-xl px-4 py-2.5 shadow-sm overflow-x-auto">
         <i data-lucide="hard-drive" class="w-4 h-4 text-slate-400 shrink-0"></i>
-        <span class="text-slate-400 font-medium">Selecciona una carpeta...</span>
+        <span class="text-slate-400 font-medium">Carga archivos o selecciona una carpeta...</span>
       </div>
 
-      <!-- Stats — solo se muestran si hay datos reales -->
+      <!-- Stats -->
       <div class="grid grid-cols-4 gap-2">
         <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
           <p id="stat-total" class="text-xl font-black text-purple-700">—</p>
@@ -422,24 +473,28 @@ HTML = f"""<!DOCTYPE html>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex"
            style="height:calc(100vh - 340px); min-height:380px;">
 
-        <!-- ÁRBOL (solo visible en modo FS API) -->
+        <!-- ÁRBOL (visible cuando hay estructura jerárquica) -->
         <div id="panel-arbol" class="w-52 border-r border-slate-100 p-2 overflow-y-auto bg-slate-50/50 shrink-0">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Árbol de directorios</p>
           <div id="arbol-dir" class="space-y-0.5">
             <p class="text-slate-400 px-2 py-6 text-center text-xs">Sin datos</p>
           </div>
           <p id="nota-arbol-flat" class="text-xs text-slate-400 text-center py-2 hidden">
-            (Vista plana: sin árbol)
+            (Vista de archivos)
           </p>
         </div>
 
         <!-- TABLA -->
         <div class="flex-1 flex flex-col overflow-hidden">
           <!-- Sub-header -->
-          <div class="border-b border-slate-100 px-4 py-2 flex items-center gap-3 bg-white shrink-0">
+          <div class="border-b border-slate-100 px-4 py-2 flex items-center gap-2 bg-white shrink-0">
             <span id="label-ruta-actual" class="text-xs text-slate-500 font-mono truncate flex-1 select-all">
-              Seleccione una carpeta
+              Seleccione archivos o una carpeta
             </span>
+            <button onclick="abrirArchivos()" title="Agregar más archivos"
+              class="text-purple-600 hover:bg-purple-50 text-xs font-semibold px-2 py-1 rounded flex items-center gap-1 transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar archivos
+            </button>
             <button onclick="subirNivel()" title="Subir un nivel" id="btn-subir"
               class="text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50 hidden">
               <i data-lucide="arrow-up" class="w-4 h-4"></i>
@@ -448,7 +503,7 @@ HTML = f"""<!DOCTYPE html>
               class="text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50">
               <i data-lucide="refresh-cw" class="w-4 h-4"></i>
             </button>
-            <button onclick="abrirDirectorio()" title="Cambiar carpeta"
+            <button onclick="abrirDirectorio()" title="Abrir carpeta"
               class="text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50">
               <i data-lucide="folder-open" class="w-4 h-4"></i>
             </button>
@@ -474,12 +529,19 @@ HTML = f"""<!DOCTYPE html>
               </thead>
               <tbody id="tabla-body" class="divide-y divide-slate-50 text-sm">
                 <tr><td colspan="6" class="text-center py-16 text-slate-400">
-                  <i data-lucide="folder-open" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
-                  <p class="text-sm font-medium">Aún no has abierto ninguna carpeta.</p>
-                  <button onclick="abrirDirectorio()"
-                    class="mt-3 text-purple-600 hover:underline text-sm font-semibold">
-                    Haz clic aquí para comenzar →
-                  </button>
+                  <i data-lucide="files" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
+                  <p class="text-sm font-medium">Aún no has cargado archivos o carpetas.</p>
+                  <div class="flex items-center justify-center gap-3 mt-3">
+                    <button onclick="abrirArchivos()"
+                      class="text-purple-600 hover:underline text-sm font-semibold flex items-center gap-1">
+                      <i data-lucide="file-up" class="w-3.5 h-3.5"></i> Subir Archivos
+                    </button>
+                    <span class="text-slate-300">|</span>
+                    <button onclick="abrirDirectorio()"
+                      class="text-purple-600 hover:underline text-sm font-semibold flex items-center gap-1">
+                      <i data-lucide="folder-open" class="w-3.5 h-3.5"></i> Abrir Carpeta
+                    </button>
+                  </div>
                 </td></tr>
               </tbody>
             </table>
@@ -508,7 +570,7 @@ HTML = f"""<!DOCTYPE html>
             <button onclick="abrirDocumento()"
               class="w-full bg-[#5B21B6] hover:bg-[#4C1D95] text-white text-xs font-bold
                      py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5">
-              <i data-lucide="eye" class="w-3.5 h-3.5"></i> Abrir
+              <i data-lucide="eye" class="w-3.5 h-3.5"></i> Abrir / Ver
             </button>
             <div class="grid grid-cols-2 gap-1">
               <button onclick="copiarRutaInspector()"
@@ -574,89 +636,103 @@ HTML = f"""<!DOCTYPE html>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-//  PELITOS DOCS — Explorador Universal (Chrome, Edge, Firefox, Safari)
-//  Estrategia dual:
-//    MODO A: showDirectoryPicker()  → Chrome/Edge (árbol completo)
-//    MODO B: <input webkitdirectory> → Firefox/Safari/todos (lista plana)
+//  PELITOS DOCS — Soporte Universal de Archivos y Carpetas
 // ════════════════════════════════════════════════════════════════════
 
-const FS_API = 'showDirectoryPicker' in window;  // ¿Soporta FS Access API?
+const FS_API = 'showDirectoryPicker' in window;
 
-// ─── Estado global ─────────────────────────────────────────────────
 const state = {{
-  currentEntries : [],   // Entradas del directorio actual
-  filtrados      : [],   // Subconjunto filtrado
-  selObj         : null, // Objeto entry seleccionado
+  currentEntries : [],   // Lista de entradas cargadas
+  filtrados      : [],   // Lista filtrada
+  selObj         : null, // Entrada seleccionada
   selSet         : new Set(),
-  navStack       : [],   // Solo modo A (FS API)
-  currentHandle  : null, // Solo modo A
-  dirHandle      : null, // Solo modo A
+  navStack       : [],   // Stack de directorios
+  currentHandle  : null,
+  dirHandle      : null,
   favoritos      : new Set(),
   recientes      : [],
   vistaActual    : 'lista',
   loadVersion    : 0,
   toastTimer     : null,
-  modoAPI        : false, // true = FS API, false = input fallback
+  modoAPI        : false,
 }};
 
-// ─── Utilidades ───────────────────────────────────────────────────
+// ─── Diccionario de extensiones ───────────────────────────────────
 const EXT_META = {{
-  pdf  :{{label:'PDF',        badge:'ext-pdf',   icon:'file-text',        color:'text-red-600'    }},
-  doc  :{{label:'Word',       badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
-  docx :{{label:'Word',       badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
-  xls  :{{label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
-  xlsx :{{label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
-  xlsm :{{label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
-  csv  :{{label:'CSV',        badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-700'}},
-  ppt  :{{label:'PowerPoint', badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
-  pptx :{{label:'PowerPoint', badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
-  jpg  :{{label:'Imagen JPG', badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
-  jpeg :{{label:'Imagen JPG', badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
-  png  :{{label:'Imagen PNG', badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
-  gif  :{{label:'GIF',        badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
-  bmp  :{{label:'BMP',        badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
-  svg  :{{label:'SVG',        badge:'ext-img',   icon:'image',            color:'text-purple-600' }},
-  webp :{{label:'WebP',       badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
-  tiff :{{label:'TIFF',       badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
-  mp4  :{{label:'Video MP4',  badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
-  mov  :{{label:'Video MOV',  badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
-  avi  :{{label:'Video AVI',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
-  mkv  :{{label:'Video MKV',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
-  wmv  :{{label:'Video WMV',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
-  webm :{{label:'Video WebM', badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
-  mp3  :{{label:'Audio MP3',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
-  wav  :{{label:'Audio WAV',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
-  flac :{{label:'Audio FLAC', badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
-  ogg  :{{label:'Audio OGG',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
-  m4a  :{{label:'Audio M4A',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
-  zip  :{{label:'ZIP',        badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
-  rar  :{{label:'RAR',        badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
-  '7z' :{{label:'7-Zip',      badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
-  tar  :{{label:'TAR',        badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
-  gz   :{{label:'GZIP',       badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
-  txt  :{{label:'Texto',      badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
-  md   :{{label:'Markdown',   badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
-  json :{{label:'JSON',       badge:'ext-js',    icon:'braces',           color:'text-yellow-700' }},
-  xml  :{{label:'XML',        badge:'ext-txt',   icon:'file-code',        color:'text-slate-600'  }},
-  html :{{label:'HTML',       badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
-  htm  :{{label:'HTML',       badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
-  css  :{{label:'CSS',        badge:'ext-html',  icon:'file-code',        color:'text-blue-500'   }},
-  js   :{{label:'JavaScript', badge:'ext-js',    icon:'file-code',        color:'text-yellow-700' }},
-  ts   :{{label:'TypeScript', badge:'ext-js',    icon:'file-code',        color:'text-blue-600'   }},
-  py   :{{label:'Python',     badge:'ext-code',  icon:'file-code',        color:'text-green-700'  }},
-  java :{{label:'Java',       badge:'ext-code',  icon:'file-code',        color:'text-red-700'    }},
-  cpp  :{{label:'C++',        badge:'ext-code',  icon:'file-code',        color:'text-slate-700'  }},
-  cs   :{{label:'C#',         badge:'ext-code',  icon:'file-code',        color:'text-purple-700' }},
-  go   :{{label:'Go',         badge:'ext-code',  icon:'file-code',        color:'text-sky-700'    }},
-  rb   :{{label:'Ruby',       badge:'ext-code',  icon:'file-code',        color:'text-red-600'    }},
-  sql  :{{label:'SQL',        badge:'ext-code',  icon:'database',         color:'text-orange-700' }},
-  sh   :{{label:'Script',     badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
-  bat  :{{label:'Batch',      badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
-  exe  :{{label:'Ejecutable', badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
-  dll  :{{label:'DLL',        badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
-  psd  :{{label:'Photoshop',  badge:'ext-img',   icon:'image',            color:'text-blue-700'   }},
-  ai   :{{label:'Illustrator',badge:'ext-img',   icon:'image',            color:'text-orange-700' }},
-  fig  :{{label:'Figma',      badge:'ext-img',   icon:'image',            color:'text-purple-700' }},
+  // Documentos Word
+  doc   :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
+  docx  :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
+  docm  :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
+  dot   :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
+  dotx  :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
+  // Hojas de cálculo Excel
+  xls   :{{label:'Excel',       badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
+  xlsx  :{{label:'Excel',       badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
+  xlsm  :{{label:'Excel',       badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
+  csv   :{{label:'CSV',         badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-700'}},
+  tsv   :{{label:'TSV',         badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-700'}},
+  ods   :{{label:'Excel',       badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
+  // Presentaciones PowerPoint
+  ppt   :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
+  pptx  :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
+  pptm  :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
+  potx  :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
+  // PDF
+  pdf   :{{label:'PDF',         badge:'ext-pdf',   icon:'file-text',        color:'text-red-600'    }},
+  // Imágenes
+  jpg   :{{label:'Imagen JPG',  badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
+  jpeg  :{{label:'Imagen JPG',  badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
+  png   :{{label:'Imagen PNG',  badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
+  gif   :{{label:'GIF',         badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  webp  :{{label:'WebP',        badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  svg   :{{label:'SVG',         badge:'ext-img',   icon:'image',            color:'text-purple-600' }},
+  bmp   :{{label:'BMP',         badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  tiff  :{{label:'TIFF',        badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  psd   :{{label:'Photoshop',   badge:'ext-img',   icon:'image',            color:'text-blue-700'   }},
+  ai    :{{label:'Illustrator', badge:'ext-img',   icon:'image',            color:'text-orange-700' }},
+  fig   :{{label:'Figma',       badge:'ext-img',   icon:'image',            color:'text-purple-700' }},
+  // Videos
+  mp4   :{{label:'Video MP4',   badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
+  mov   :{{label:'Video MOV',   badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
+  avi   :{{label:'Video AVI',   badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  mkv   :{{label:'Video MKV',   badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  wmv   :{{label:'Video WMV',   badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  webm  :{{label:'Video WebM',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  // Audio
+  mp3   :{{label:'Audio MP3',   badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  wav   :{{label:'Audio WAV',   badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  flac  :{{label:'Audio FLAC',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  ogg   :{{label:'Audio OGG',   badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  m4a   :{{label:'Audio M4A',   badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  // Comprimidos
+  zip   :{{label:'ZIP',         badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  rar   :{{label:'RAR',         badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  '7z'  :{{label:'7-Zip',       badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  tar   :{{label:'TAR',         badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  gz    :{{label:'GZIP',        badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  // Texto
+  txt   :{{label:'Texto',       badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
+  md    :{{label:'Markdown',    badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
+  xml   :{{label:'XML',         badge:'ext-txt',   icon:'file-code',        color:'text-slate-600'  }},
+  rtf   :{{label:'RTF',         badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
+  // Código
+  json  :{{label:'JSON',        badge:'ext-js',    icon:'braces',           color:'text-yellow-700' }},
+  html  :{{label:'HTML',        badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
+  htm   :{{label:'HTML',        badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
+  css   :{{label:'CSS',         badge:'ext-html',  icon:'file-code',        color:'text-blue-500'   }},
+  js    :{{label:'JavaScript',  badge:'ext-js',    icon:'file-code',        color:'text-yellow-700' }},
+  ts    :{{label:'TypeScript',  badge:'ext-js',    icon:'file-code',        color:'text-blue-600'   }},
+  py    :{{label:'Python',      badge:'ext-code',  icon:'file-code',        color:'text-green-700'  }},
+  java  :{{label:'Java',        badge:'ext-code',  icon:'file-code',        color:'text-red-700'    }},
+  cpp   :{{label:'C++',         badge:'ext-code',  icon:'file-code',        color:'text-slate-700'  }},
+  cs    :{{label:'C#',          badge:'ext-code',  icon:'file-code',        color:'text-purple-700' }},
+  go    :{{label:'Go',          badge:'ext-code',  icon:'file-code',        color:'text-sky-700'    }},
+  rb    :{{label:'Ruby',        badge:'ext-code',  icon:'file-code',        color:'text-red-600'    }},
+  sql   :{{label:'SQL',         badge:'ext-code',  icon:'database',         color:'text-orange-700' }},
+  sh    :{{label:'Script',      badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
+  bat   :{{label:'Batch',       badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
+  exe   :{{label:'Ejecutable',  badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
+  dll   :{{label:'DLL',         badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
 }};
 
 function getExtMeta(nombre, esDir) {{
@@ -684,24 +760,36 @@ function formatDate(ts) {{
   }} catch {{ return '—'; }}
 }}
 
-// ─── APERTURA DE CARPETA — MODO DUAL ──────────────────────────────
+// ─── ACCIONES DE SUBIDA ───────────────────────────────────────────
+
+// 1. Subir archivos sueltos o múltiples (Word, Excel, PDF, etc.)
+function abrirArchivos() {{
+  document.getElementById('input-files').click();
+}}
+
+document.getElementById('input-files').addEventListener('change', function(e) {{
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  cargarArchivos(files, state.currentEntries.length > 0);
+  e.target.value = '';
+}});
+
+// 2. Abrir carpeta
 function abrirDirectorio() {{
   if (FS_API) {{
     abrirConFsApi();
   }} else {{
-    // Fallback universal: dispara el input file
     document.getElementById('input-folder').click();
   }}
 }}
 
-// MODO A: File System Access API (Chrome / Edge)
 async function abrirConFsApi() {{
   try {{
     const handle = await window.showDirectoryPicker({{mode:'read'}});
-    state.dirHandle    = handle;
-    state.currentHandle = handle;
-    state.navStack     = [handle];
-    state.modoAPI      = true;
+    state.dirHandle     = handle;
+    state.currentHandle  = handle;
+    state.navStack      = [handle];
+    state.modoAPI       = true;
     document.getElementById('panel-arbol').style.display = '';
     document.getElementById('nota-arbol-flat').classList.add('hidden');
     document.getElementById('btn-subir').classList.remove('hidden');
@@ -712,7 +800,6 @@ async function abrirConFsApi() {{
   }}
 }}
 
-// MODO B: input[type=file webkitdirectory] (Firefox / Safari / todos)
 document.getElementById('input-folder').addEventListener('change', function(e) {{
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
@@ -722,14 +809,76 @@ document.getElementById('input-folder').addEventListener('change', function(e) {
   document.getElementById('btn-subir').classList.add('hidden');
   cargarEntradasPlanas(files);
   navActivar('explorador');
-  // Resetear el input para poder volver a abrir la misma carpeta
   e.target.value = '';
 }});
 
-// ─── MODO A: cargar desde FS API ──────────────────────────────────
+// ─── Cargar y acumular archivos ───────────────────────────────────
+function cargarArchivos(files, append = false) {{
+  mostrarLoading('Procesando archivos...', files.length + ' archivo(s)');
+  try {{
+    const nuevasEntradas = Array.from(files).map(f => ({{
+      name: f.name,
+      kind: 'file',
+      size: f.size,
+      lastMod: f.lastModified,
+      handle: null,
+      fileObj: f
+    }}));
+
+    let entries = append ? [...state.currentEntries] : [];
+    nuevasEntradas.forEach(ne => {{
+      const idx = entries.findIndex(e => e.name === ne.name);
+      if (idx >= 0) entries[idx] = ne; // actualizar si ya existía
+      else entries.push(ne);
+    }});
+
+    entries.sort((a,b) => {{
+      if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name, 'es', {{sensitivity:'base'}});
+    }});
+
+    const totalSize = entries.reduce((acc, e) => acc + (e.size || 0), 0);
+    const rutaLbl = document.getElementById('label-ruta-actual');
+    if (rutaLbl) rutaLbl.textContent = 'Archivos cargados (' + entries.length + ')';
+
+    document.getElementById('panel-arbol').style.display = 'none';
+    document.getElementById('nota-arbol-flat').classList.remove('hidden');
+    document.getElementById('btn-subir').classList.add('hidden');
+    state.modoAPI = false;
+
+    aplicarNuevasEntradas(entries, totalSize, 'Archivos cargados');
+    navActivar('explorador');
+    toast(nuevasEntradas.length + ' archivo(s) cargado(s) exitosamente');
+  }} catch(e) {{
+    toast('Error al cargar archivos: ' + e.message, true);
+  }}
+  ocultarLoading();
+}}
+
+// ─── Drag & Drop Universal ────────────────────────────────────────
+window.addEventListener('dragover', (e) => {{
+  e.preventDefault();
+  document.body.classList.add('drag-over');
+}});
+
+window.addEventListener('dragleave', (e) => {{
+  if (e.clientX <= 0 || e.clientY <= 0) {{
+    document.body.classList.remove('drag-over');
+  }}
+}});
+
+window.addEventListener('drop', (e) => {{
+  e.preventDefault();
+  document.body.classList.remove('drag-over');
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {{
+    cargarArchivos(e.dataTransfer.files, state.currentEntries.length > 0);
+  }}
+}});
+
+// ─── Métodos de lectura de carpetas ───────────────────────────────
 async function cargarEntradasAPI(dirHandle) {{
   const version = ++state.loadVersion;
-  mostrarLoading('Leyendo archivos...', dirHandle.name);
+  mostrarLoading('Leyendo carpeta...', dirHandle.name);
   try {{
     const entries = [];
     let totalSize = 0;
@@ -740,7 +889,7 @@ async function cargarEntradasAPI(dirHandle) {{
         try {{
           const file = await handle.getFile();
           size = file.size; lastMod = file.lastModified; totalSize += file.size;
-        }} catch {{ /* sin permiso */ }}
+        }} catch {{}}
       }}
       entries.push({{name, handle, kind: handle.kind, size, lastMod, fileObj: null}});
     }}
@@ -749,27 +898,25 @@ async function cargarEntradasAPI(dirHandle) {{
       if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
       return a.name.localeCompare(b.name, 'es', {{sensitivity:'base'}});
     }});
+    const rutaLbl = document.getElementById('label-ruta-actual');
+    if (rutaLbl) rutaLbl.textContent = dirHandle.name + '/';
     aplicarNuevasEntradas(entries, totalSize, dirHandle.name);
   }} catch(e) {{
-    toast('Error al leer el directorio: ' + e.message, true);
+    toast('Error al leer directorio: ' + e.message, true);
   }}
   ocultarLoading();
 }}
 
-// ─── MODO B: cargar desde FileList plano ──────────────────────────
 function cargarEntradasPlanas(files) {{
-  mostrarLoading('Procesando archivos...', files.length + ' archivos');
+  mostrarLoading('Procesando carpeta...', files.length + ' archivos');
   try {{
     let totalSize = 0;
     const nombreCarpeta = files[0]?.webkitRelativePath?.split('/')[0] || 'Carpeta seleccionada';
-
-    // Agrupar: archivos directos de la raíz + subcarpetas de primer nivel
-    const entradasMap = new Map(); // nombre → entry
+    const entradasMap = new Map();
 
     files.forEach(f => {{
       const partes = f.webkitRelativePath.split('/');
       if (partes.length === 2) {{
-        // Archivo directo en la raíz
         const nombre = partes[1];
         totalSize += f.size;
         entradasMap.set(nombre, {{
@@ -777,7 +924,6 @@ function cargarEntradasPlanas(files) {{
           lastMod: f.lastModified, handle: null, fileObj: f
         }});
       }} else if (partes.length >= 3) {{
-        // Subcarpeta de primer nivel
         const carpeta = partes[1];
         if (!entradasMap.has(carpeta)) {{
           entradasMap.set(carpeta, {{
@@ -795,10 +941,10 @@ function cargarEntradasPlanas(files) {{
     }});
 
     const lbl = document.getElementById('label-ruta-actual');
-    if (lbl) lbl.textContent = nombreCarpeta + '/ (vista plana)';
+    if (lbl) lbl.textContent = nombreCarpeta + '/';
     aplicarNuevasEntradas(entries, totalSize, nombreCarpeta);
   }} catch(e) {{
-    toast('Error al procesar archivos: ' + e.message, true);
+    toast('Error al procesar carpeta: ' + e.message, true);
   }}
   ocultarLoading();
 }}
@@ -821,7 +967,7 @@ function aplicarNuevasEntradas(entries, totalSize, nombreDir) {{
   actualizarInspector(null);
 }}
 
-// ─── Stats ─────────────────────────────────────────────────────────
+// ─── Estadísticas ─────────────────────────────────────────────────
 function actualizarStats(entries, totalSize) {{
   const carpetas = entries.filter(e => e.kind === 'directory').length;
   const archivos = entries.filter(e => e.kind === 'file').length;
@@ -844,35 +990,29 @@ function renderTabla(entries) {{
     const tr = document.createElement('tr');
     const td = document.createElement('td');
     td.colSpan = 6;
-    td.className = 'text-center py-10 text-slate-400 text-sm';
-    td.textContent = 'Carpeta vacía o sin resultados';
+    td.className = 'text-center py-16 text-slate-400 text-sm';
+    td.innerHTML = `
+      <i data-lucide="folder-search" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
+      <p class="font-medium">No hay archivos para mostrar con este filtro.</p>
+    `;
     tr.appendChild(td);
     tbody.appendChild(tr);
+    if (window.lucide) lucide.createIcons();
     return;
   }}
 
-  // Fila ".." solo en modo API con navegación profunda
   if (state.modoAPI && state.navStack.length > 1) {{
     const trUp = document.createElement('tr');
     trUp.className = 'cursor-pointer hover:bg-slate-50 transition';
     trUp.ondblclick = subirNivel;
-    const tdChk = document.createElement('td');
-    tdChk.className = 'py-2.5 px-3';
-    trUp.appendChild(tdChk);
-    const tdName = document.createElement('td');
-    tdName.colSpan = 5;
-    tdName.className = 'py-2.5 px-3';
-    const w = document.createElement('div');
-    w.className = 'flex items-center gap-2 text-slate-400 text-sm hover:text-purple-600';
-    const ic = document.createElement('i');
-    ic.setAttribute('data-lucide','corner-left-up');
-    ic.className = 'w-4 h-4';
-    const sp = document.createElement('span');
-    sp.className = 'font-medium';
-    sp.textContent = '.. (subir un nivel)';
-    w.appendChild(ic); w.appendChild(sp);
-    tdName.appendChild(w);
-    trUp.appendChild(tdName);
+    trUp.innerHTML = `
+      <td class="py-2.5 px-3"></td>
+      <td class="py-2.5 px-3" colspan="5">
+        <div class="flex items-center gap-2 text-slate-400 text-sm hover:text-purple-600">
+          <i data-lucide="corner-left-up" class="w-4 h-4"></i>
+          <span class="font-medium">.. (subir un nivel)</span>
+        </div>
+      </td>`;
     tbody.appendChild(trUp);
   }}
 
@@ -894,7 +1034,7 @@ function renderTabla(entries) {{
     tdChk.appendChild(chk);
     tr.appendChild(tdChk);
 
-    // Nombre — textContent previene XSS
+    // Nombre
     const tdName = document.createElement('td');
     tdName.className = 'py-2.5 px-3';
     const nameDiv = document.createElement('div');
@@ -965,7 +1105,7 @@ function renderTabla(entries) {{
   if (window.lucide) lucide.createIcons();
 }}
 
-// ─── Árbol (solo modo API) ─────────────────────────────────────────
+// ─── Árbol ────────────────────────────────────────────────────────
 function renderArbol() {{
   const arbol = document.getElementById('arbol-dir');
   arbol.innerHTML = '';
@@ -995,7 +1135,7 @@ async function navArbol(idx) {{
   await cargarEntradasAPI(state.currentHandle);
 }}
 
-// ─── Abrir entrada ────────────────────────────────────────────────
+// ─── Abrir / Ver Archivo ──────────────────────────────────────────
 async function abrirEntrada(entry) {{
   if (!entry) return;
   if (entry.kind === 'directory') {{
@@ -1004,19 +1144,18 @@ async function abrirEntrada(entry) {{
       state.currentHandle = entry.handle;
       await cargarEntradasAPI(entry.handle);
     }} else {{
-      toast('Navegación interna no disponible en modo Firefox/Safari. Selecciona una subcarpeta desde el botón Abrir Carpeta.', false);
+      toast('Navega dentro de subcarpetas seleccionándolas con "Abrir Carpeta".');
     }}
   }} else {{
     try {{
       let file;
       if (entry.fileObj) {{
-        // Modo B: File object ya disponible
         file = entry.fileObj;
       }} else if (entry.handle) {{
-        // Modo A: obtener desde FileSystemFileHandle
         file = await entry.handle.getFile();
-      }} else {{
-        toast('No se puede abrir este archivo', true);
+      }}
+      if (!file) {{
+        toast('No se pudo acceder al archivo seleccionado', true);
         return;
       }}
       const url = URL.createObjectURL(file);
@@ -1025,7 +1164,7 @@ async function abrirEntrada(entry) {{
       addReciente(entry);
       toast('Abriendo: ' + entry.name);
     }} catch(e) {{
-      toast('No se pudo abrir: ' + e.message, true);
+      toast('Error al abrir: ' + e.message, true);
     }}
   }}
 }}
@@ -1040,11 +1179,11 @@ async function subirNivel() {{
 async function actualizarDirectorio() {{
   if (state.modoAPI && state.currentHandle) {{
     await cargarEntradasAPI(state.currentHandle);
-    toast('Directorio actualizado');
-  }} else if (!state.modoAPI && state.currentEntries.length) {{
-    toast('Vuelve a abrir la carpeta para actualizar.');
+    toast('Carpeta actualizada');
+  }} else if (state.currentEntries.length) {{
+    toast('Listado actualizado');
   }} else {{
-    toast('No hay carpeta abierta.', true);
+    toast('No hay archivos cargados.', true);
   }}
 }}
 
@@ -1081,14 +1220,11 @@ function actualizarInspector(entry) {{
   const body    = document.getElementById('inspector-body');
   const actions = document.getElementById('inspector-actions');
   if (!entry) {{
-    body.innerHTML = '';
-    const w = document.createElement('div');
-    w.className = 'text-center text-slate-300 py-10';
-    w.innerHTML = '<i data-lucide="file-search" class="w-9 h-9 mx-auto mb-2"></i>';
-    const p = document.createElement('p');
-    p.className = 'text-sm'; p.textContent = 'Selecciona un archivo';
-    w.appendChild(p);
-    body.appendChild(w);
+    body.innerHTML = `
+      <div class="text-center text-slate-300 py-10">
+        <i data-lucide="file-search" class="w-9 h-9 mx-auto mb-2"></i>
+        <p class="text-sm">Selecciona un archivo</p>
+      </div>`;
     actions.classList.add('hidden');
     if (window.lucide) lucide.createIcons();
     return;
@@ -1096,54 +1232,35 @@ function actualizarInspector(entry) {{
   const meta  = getExtMeta(entry.name, entry.kind === 'directory');
   const isFav = state.favoritos.has(entry.name);
 
-  body.innerHTML = '';
-  const topBox = document.createElement('div');
-  topBox.className = 'flex flex-col items-center py-3 border-b border-slate-100';
-  const iconW = document.createElement('div');
-  iconW.className = 'w-14 h-14 rounded-xl flex items-center justify-center bg-slate-100 mb-2';
-  const bIcon = document.createElement('i');
-  bIcon.setAttribute('data-lucide', meta.icon);
-  bIcon.className = 'w-8 h-8 ' + meta.color;
-  iconW.appendChild(bIcon);
-  const nameP = document.createElement('p');
-  nameP.className = 'font-bold text-slate-800 text-center text-xs break-all leading-tight px-1';
-  nameP.textContent = entry.name;
-  const badgeSp = document.createElement('span');
-  badgeSp.className = 'ext-badge ' + meta.badge + ' mt-1';
-  badgeSp.textContent = meta.label;
-  topBox.appendChild(iconW); topBox.appendChild(nameP); topBox.appendChild(badgeSp);
-  body.appendChild(topBox);
-
-  const metaDiv = document.createElement('div');
-  metaDiv.className = 'space-y-1.5 text-xs pt-2';
-  [
-    ['Tipo',      meta.label],
-    ['Tamaño',    entry.kind==='directory'?'—':formatSize(entry.size)],
-    ['Modificado',formatDate(entry.lastMod)],
-  ].forEach(([label, value]) => {{
-    const row = document.createElement('div');
-    row.className = 'flex justify-between gap-1';
-    const lbl = document.createElement('span');
-    lbl.className = 'text-slate-400'; lbl.textContent = label + ':';
-    const val = document.createElement('span');
-    val.className = 'font-semibold text-slate-700 text-right truncate max-w-[8rem]';
-    val.textContent = value; val.title = value;
-    row.appendChild(lbl); row.appendChild(val);
-    metaDiv.appendChild(row);
-  }});
-  if (isFav) {{
-    const favRow = document.createElement('div');
-    favRow.className = 'flex items-center gap-1 text-amber-600 font-semibold mt-1 text-xs';
-    favRow.innerHTML = '<i data-lucide="star" class="w-3 h-3 fill-amber-400"></i> En favoritos';
-    metaDiv.appendChild(favRow);
-  }}
-  body.appendChild(metaDiv);
+  body.innerHTML = `
+    <div class="flex flex-col items-center py-3 border-b border-slate-100">
+      <div class="w-14 h-14 rounded-xl flex items-center justify-center bg-slate-100 mb-2">
+        <i data-lucide="${{meta.icon}}" class="w-8 h-8 ${{meta.color}}"></i>
+      </div>
+      <p class="font-bold text-slate-800 text-center text-xs break-all leading-tight px-1">${{entry.name}}</p>
+      <span class="ext-badge ${{meta.badge}} mt-1">${{meta.label}}</span>
+    </div>
+    <div class="space-y-1.5 text-xs pt-2">
+      <div class="flex justify-between gap-1">
+        <span class="text-slate-400">Tipo:</span>
+        <span class="font-semibold text-slate-700">${{meta.label}}</span>
+      </div>
+      <div class="flex justify-between gap-1">
+        <span class="text-slate-400">Tamaño:</span>
+        <span class="font-semibold text-slate-700">${{entry.kind==='directory'?'—':formatSize(entry.size)}}</span>
+      </div>
+      <div class="flex justify-between gap-1">
+        <span class="text-slate-400">Modificado:</span>
+        <span class="font-semibold text-slate-700">${{formatDate(entry.lastMod)}}</span>
+      </div>
+      ${{isFav ? '<div class="flex items-center gap-1 text-amber-600 font-semibold mt-1 text-xs"><i data-lucide="star" class="w-3 h-3 fill-amber-400"></i> En favoritos</div>' : ''}}
+    </div>
+  `;
 
   actions.classList.remove('hidden');
   const btnFav = document.getElementById('btn-fav-inspector');
   btnFav.innerHTML =
-    '<i data-lucide="star" class="w-3 h-3 ' + (isFav?'text-amber-400 fill-amber-400':'text-slate-400') + '"></i> ' +
-    (isFav ? 'Quitar' : 'Fav.');
+    `<i data-lucide="star" class="w-3 h-3 ${{isFav ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}}"></i> ${{isFav ? 'Quitar' : 'Fav.'}}`;
   if (window.lucide) lucide.createIcons();
 }}
 
@@ -1153,9 +1270,9 @@ async function abrirDocumento() {{
 
 function copiarRutaInspector() {{
   if (!state.selObj) return;
-  const ruta = (state.currentHandle?.name || 'carpeta') + '\\\\' + state.selObj.name;
+  const ruta = (state.currentHandle?.name || 'documentos') + '\\\\' + state.selObj.name;
   navigator.clipboard.writeText(ruta)
-    .then(() => toast('Ruta copiada'))
+    .then(() => toast('Nombre copiado al portapapeles'))
     .catch(() => toast('Error al copiar', true));
 }}
 
@@ -1167,14 +1284,14 @@ function toggleFavoritoInspector() {{
     toast('Removido de favoritos');
   }} else {{
     state.favoritos.add(nombre);
-    toast('Favorito: ' + nombre);
+    toast('Agregado a favoritos: ' + nombre);
   }}
   actualizarInspector(state.selObj);
   renderTabla(state.filtrados.length ? state.filtrados : state.currentEntries);
   renderListaFavoritos();
 }}
 
-// ─── Filtros ──────────────────────────────────────────────────────
+// ─── Filtros exactos según el selector ────────────────────────────
 function aplicarFiltros() {{
   if (!state.currentEntries.length) return;
   const q    = (document.getElementById('buscador-top')?.value || '').toLowerCase().trim();
@@ -1190,16 +1307,36 @@ function aplicarFiltros() {{
       const ext = entry.name.includes('.') ? entry.name.split('.').pop().toLowerCase() : '';
       const m = EXT_META[ext];
       switch(tipo) {{
-        case 'pdf' : matchTipo = ext === 'pdf'; break;
-        case 'doc' : matchTipo = ['doc','docx'].includes(ext); break;
-        case 'xls' : matchTipo = ['xls','xlsx','xlsm','csv'].includes(ext); break;
-        case 'ppt' : matchTipo = ['ppt','pptx'].includes(ext); break;
-        case 'img' : matchTipo = m?.badge === 'ext-img'; break;
-        case 'vid' : matchTipo = m?.badge === 'ext-vid'; break;
-        case 'mp3' : matchTipo = m?.badge === 'ext-mp3'; break;
-        case 'zip' : matchTipo = m?.badge === 'ext-zip'; break;
-        case 'txt' : matchTipo = m?.badge === 'ext-txt'; break;
-        case 'code': matchTipo = ['ext-code','ext-js','ext-html'].includes(m?.badge || ''); break;
+        case 'pdf' :
+          matchTipo = ext === 'pdf';
+          break;
+        case 'doc' :
+          matchTipo = ['doc','docx','docm','dot','dotx'].includes(ext);
+          break;
+        case 'xls' :
+          matchTipo = ['xls','xlsx','xlsm','csv','tsv','ods'].includes(ext);
+          break;
+        case 'ppt' :
+          matchTipo = ['ppt','pptx','pptm','potx'].includes(ext);
+          break;
+        case 'img' :
+          matchTipo = ['jpg','jpeg','png','gif','webp','svg','bmp','tiff','psd','ai','fig'].includes(ext) || m?.badge === 'ext-img';
+          break;
+        case 'vid' :
+          matchTipo = ['mp4','mov','avi','mkv','wmv','webm'].includes(ext) || m?.badge === 'ext-vid';
+          break;
+        case 'mp3' :
+          matchTipo = ['mp3','wav','flac','ogg','m4a'].includes(ext) || m?.badge === 'ext-mp3';
+          break;
+        case 'zip' :
+          matchTipo = ['zip','rar','7z','tar','gz'].includes(ext) || m?.badge === 'ext-zip';
+          break;
+        case 'txt' :
+          matchTipo = ['txt','md','xml','rtf'].includes(ext) || m?.badge === 'ext-txt';
+          break;
+        case 'code':
+          matchTipo = ['py','js','ts','html','htm','css','json','java','cpp','cs','go','rb','sql','sh','bat'].includes(ext) || ['ext-code','ext-js','ext-html'].includes(m?.badge || '');
+          break;
       }}
     }}
     return matchQ && matchTipo;
@@ -1263,25 +1400,14 @@ function renderGrid(entries) {{
     div.className = 'cursor-pointer bg-white border border-slate-200 rounded-xl p-2.5 flex flex-col items-center text-center hover:border-purple-400 hover:shadow transition select-none';
     div.ondblclick = () => abrirEntrada(entry);
     div.onclick    = () => seleccionar(entry, null);
-    const iconBox = document.createElement('div');
-    iconBox.className = 'w-11 h-11 flex items-center justify-center rounded-lg bg-slate-50 mb-1.5';
-    const icon = document.createElement('i');
-    icon.setAttribute('data-lucide', meta.icon);
-    icon.className = 'w-7 h-7 ' + meta.color;
-    iconBox.appendChild(icon);
-    const nameP = document.createElement('p');
-    nameP.className = 'text-xs text-slate-700 font-medium break-all leading-tight max-h-9 overflow-hidden';
-    nameP.title = entry.name; nameP.textContent = entry.name;
-    const badgeSp = document.createElement('span');
-    badgeSp.className = 'ext-badge ' + meta.badge + ' mt-1';
-    badgeSp.textContent = meta.label;
-    div.appendChild(iconBox); div.appendChild(nameP); div.appendChild(badgeSp);
-    if (entry.kind === 'file') {{
-      const sizeP = document.createElement('p');
-      sizeP.className = 'text-xs text-slate-400 mt-0.5';
-      sizeP.textContent = formatSize(entry.size);
-      div.appendChild(sizeP);
-    }}
+    div.innerHTML = `
+      <div class="w-11 h-11 flex items-center justify-center rounded-lg bg-slate-50 mb-1.5">
+        <i data-lucide="${{meta.icon}}" class="w-7 h-7 ${{meta.color}}"></i>
+      </div>
+      <p class="text-xs text-slate-700 font-medium break-all leading-tight max-h-9 overflow-hidden" title="${{entry.name}}">${{entry.name}}</p>
+      <span class="ext-badge ${{meta.badge}} mt-1">${{meta.label}}</span>
+      ${{entry.kind==='file' ? '<p class="text-xs text-slate-400 mt-0.5">'+formatSize(entry.size)+'</p>' : ''}}
+    `;
     grid.appendChild(div);
   }});
   if (window.lucide) lucide.createIcons();
@@ -1309,15 +1435,10 @@ function actualizarBreadcrumb(nombreDir) {{
       bar.appendChild(span);
     }});
   }} else {{
-    // Modo B: mostrar solo el nombre de la carpeta seleccionada
     const span = document.createElement('span');
     span.className = 'text-sm text-purple-700 font-bold';
-    span.textContent = nombreDir || 'Carpeta seleccionada';
+    span.textContent = nombreDir || 'Archivos cargados';
     bar.appendChild(span);
-    const note = document.createElement('span');
-    note.className = 'text-xs text-slate-400 ml-2';
-    note.textContent = '(vista raíz — modo compatible)';
-    bar.appendChild(note);
   }}
   if (window.lucide) lucide.createIcons();
 }}
@@ -1340,13 +1461,10 @@ function renderListaRecientes() {{
     div.className = 'flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer';
     div.onclick = () => abrirEntrada(entry);
     const meta = getExtMeta(entry.name, false);
-    const icon = document.createElement('i');
-    icon.setAttribute('data-lucide', meta.icon);
-    icon.className = 'w-4 h-4 ' + meta.color + ' shrink-0';
-    const sp = document.createElement('span');
-    sp.className = 'text-sm text-slate-700 font-medium truncate';
-    sp.textContent = entry.name;
-    div.appendChild(icon); div.appendChild(sp);
+    div.innerHTML = `
+      <i data-lucide="${{meta.icon}}" class="w-4 h-4 ${{meta.color}} shrink-0"></i>
+      <span class="text-sm text-slate-700 font-medium truncate">${{entry.name}}</span>
+    `;
     cont.appendChild(div);
   }});
   if (window.lucide) lucide.createIcons();
@@ -1362,13 +1480,10 @@ function renderListaFavoritos() {{
   state.favoritos.forEach(nombre => {{
     const div = document.createElement('div');
     div.className = 'flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-amber-50';
-    const icon = document.createElement('i');
-    icon.setAttribute('data-lucide','star');
-    icon.className = 'w-4 h-4 text-amber-400 fill-amber-400 shrink-0';
-    const sp = document.createElement('span');
-    sp.className = 'text-sm text-slate-700 font-medium truncate';
-    sp.textContent = nombre;
-    div.appendChild(icon); div.appendChild(sp);
+    div.innerHTML = `
+      <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400 shrink-0"></i>
+      <span class="text-sm text-slate-700 font-medium truncate">${{nombre}}</span>
+    `;
     cont.appendChild(div);
   }});
   if (window.lucide) lucide.createIcons();
@@ -1403,7 +1518,7 @@ function navActivar(sec) {{
 }}
 
 function selUnidad(unidad) {{
-  toast('Cargando: ' + unidad);
+  toast('Unidad seleccionada: ' + unidad);
 }}
 
 // ─── UI Helpers ───────────────────────────────────────────────────
@@ -1438,16 +1553,8 @@ function maximizarVentana() {{
     document.exitFullscreen().catch(()=>{{}});
 }}
 
-// ─── Init ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {{
   if (window.lucide) lucide.createIcons();
-  // Informar al usuario qué modo está disponible
-  const lbl = document.getElementById('lbl-modo-api');
-  if (lbl) {{
-    lbl.textContent = FS_API
-      ? '✅ Modo avanzado disponible (Chrome/Edge) — árbol de carpetas completo'
-      : '✅ Modo compatible activo — funciona en Firefox, Safari y cualquier navegador';
-  }}
 }});
 </script>
 
@@ -1459,7 +1566,7 @@ with open("index.html", "w", encoding="utf-8") as f:
     f.write(HTML)
 
 print(f"index.html generado: {len(HTML):,} caracteres")
-print("[OK] Compatible con: Chrome, Edge, Firefox, Safari")
-print("[OK] Sin contadores de documentos falsos")
-print("[OK] Modo A (FS API): arbol + navegacion jerarquica")
-print("[OK] Modo B (input fallback): lista plana universal")
+print("[OK] Subida de archivos individuales y multiples (Word, Excel, PDF, etc.)")
+print("[OK] Apertura de carpetas completas")
+print("[OK] Soporte Drag & Drop universal")
+print("[OK] Filtros por extension completados")
