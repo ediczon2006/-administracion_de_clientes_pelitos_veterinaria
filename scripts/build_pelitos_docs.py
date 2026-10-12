@@ -1,25 +1,14 @@
 """
-build_pelitos_docs.py  –  Senior Dev Edition
-=============================================
-BUGS CORREGIDOS:
-  1.  XSS: entry.name se insertaba con innerHTML sin sanitizar → usar textContent / escapeHTML()
-  2.  Memory Leak: URL.createObjectURL() sin URL.revokeObjectURL() → revocar después de 60s
-  3.  Race Condition: cargarEntradas() no cancelaba lecturas previas → flag de versión
-  4.  Índices rotos al filtrar: selección usa idx de currentEntries pero filtrados tiene distinto orden
-       → state.seleccionado guarda la REFERENCIA al objeto, no el índice
-  5.  Toast timer acumulativo: múltiples setTimeout sin limpiar el anterior → clearTimeout
-  6.  buscarEnTabla() llama a aplicarFiltros() sin pasar el query, código innecesario → eliminado,
-       el input llama directo a aplicarFiltros()
-  7.  ordenarPor() sólo manejaba 'nombre', redirigía mal 'tipo'/'tamaño'/'fecha' → corregido
-  8.  va/vb sin valor por defecto en sort: si orden no coincide retorna 0 siempre → default a nombre
-  9.  navActivar(): 'buscar','favoritos','recientes' no tenían vista asignada, se perdían → vistas correctas
-  10. mostrarLoading/ocultarLoading: mezcla de flex+hidden con clases inline → usar solo 'hidden' + CSS flex
-  11. Verificación API navegador: solo cambia title del primer botón; el CTA y sidebar no se deshabilitan
-  12. estado.filtrados no se resetea al cambiar carpeta → resetear en cargarEntradas()
-  13. selTodos() usa índice de filtrados en state.seleccionados que indexa currentEntries → bug de selección
-  14. TIPOGRAFÍA: tamaños text-[9px]/text-[10px]/text-[11px] → subidos a text-xs/text-sm según contexto
-  15. ext-badge font-size:9px → 11px
-  16. .drop-zone-active definida pero nunca usada → eliminada (código muerto)
+build_pelitos_docs.py  –  v3 Universal Browser Edition
+=======================================================
+NUEVAS CORRECCIONES:
+  + Soporte UNIVERSAL de navegadores:
+      - Chrome / Edge:  showDirectoryPicker() (API moderna con árbol de carpetas)
+      - Firefox / Safari / cualquier otro: <input type=file webkitdirectory> (selección plana)
+  + Eliminar contadores falsos ("328 docs") de tarjetas de unidades y servicios.
+    Las tarjetas solo muestran nombre e ícono; el contador aparece SOLO si se carga una carpeta real.
+  + Eliminar todo aviso "Requiere Edge / Chrome" — ya no aplica.
+  + El botón "Abrir Carpeta" siempre está activo en cualquier navegador.
 """
 import base64, os
 
@@ -39,40 +28,29 @@ HTML = f"""<!DOCTYPE html>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    /* ── Reset ── */
     *, *::before, *::after {{ box-sizing:border-box; margin:0; padding:0; }}
-
     body {{
       font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       background:#F1F5F9; color:#1E293B;
-      height:100vh; overflow:hidden;
-      font-size:13px; /* BASE LEGIBLE */
+      height:100vh; overflow:hidden; font-size:13px;
     }}
-
-    /* ── Scrollbar ── */
     ::-webkit-scrollbar {{ width:5px; height:5px; }}
     ::-webkit-scrollbar-track {{ background:#F1F5F9; }}
     ::-webkit-scrollbar-thumb {{ background:#CBD5E1; border-radius:4px; }}
 
-    /* ── Sidebar ── */
     .sidebar-active {{ background:#5B21B6!important; color:#fff!important; font-weight:700; }}
+    .tree-active    {{ background:#FDE68A!important; color:#78350F!important; border-radius:6px; font-weight:700; }}
+    .row-selected   {{ background:#EDE9FE!important; }}
+    .row-selected td{{ color:#5B21B6; font-weight:600; }}
 
-    /* ── Tree ── */
-    .tree-active {{ background:#FDE68A!important; color:#78350F!important; border-radius:6px; font-weight:700; }}
-
-    /* ── Tabla ── */
-    .row-selected {{ background:#EDE9FE!important; }}
-    .row-selected td {{ color:#5B21B6; font-weight:600; }}
-
-    /* ── Animación ── */
     .animate-pulse-slow {{ animation:pulse-s 2s ease-in-out infinite; }}
     @keyframes pulse-s {{ 0%,100%{{opacity:1}} 50%{{opacity:.55}} }}
 
-    /* ── Badges de extensión — tamaño aumentado ── */
+    /* Badges de extensión */
     .ext-badge {{
       display:inline-block; padding:2px 7px; border-radius:5px;
-      font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
-      white-space:nowrap;
+      font-size:11px; font-weight:700; letter-spacing:.4px;
+      text-transform:uppercase; white-space:nowrap;
     }}
     .ext-pdf    {{ background:#FEE2E2; color:#B91C1C; }}
     .ext-doc    {{ background:#DBEAFE; color:#1D4ED8; }}
@@ -89,13 +67,15 @@ HTML = f"""<!DOCTYPE html>
     .ext-default{{ background:#F1F5F9; color:#475569; }}
     .folder-badge{{ background:#FEF3C7; color:#92400E; }}
 
-    /* ── Loading overlay ── */
-    #loading-overlay {{ display:none; position:fixed; inset:0;
+    /* Loading */
+    #loading-overlay {{
+      display:none; position:fixed; inset:0;
       background:rgba(88,28,135,.6); backdrop-filter:blur(4px);
-      z-index:60; align-items:center; justify-content:center; }}
+      z-index:60; align-items:center; justify-content:center;
+    }}
     #loading-overlay.active {{ display:flex; }}
 
-    /* ── Toast ── */
+    /* Toast */
     #toast {{
       position:fixed; bottom:1.25rem; right:1.25rem;
       background:#16002B; color:#fff; font-size:13px;
@@ -107,16 +87,17 @@ HTML = f"""<!DOCTYPE html>
     }}
     #toast.show {{ transform:translateY(0); opacity:1; }}
 
-    /* ── FS API no disponible ── */
-    .fs-unavailable {{ opacity:.45; cursor:not-allowed!important; pointer-events:none; }}
-    .fs-unavailable-hint {{ display:none; }}
-    .no-fs-api .fs-unavailable-hint {{ display:block; }}
+    /* Input file oculto para fallback universal */
+    #input-folder {{ display:none; }}
   </style>
 </head>
 
 <body class="flex h-screen overflow-hidden">
 
-<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<!-- Input oculto para navegadores sin showDirectoryPicker (Firefox, Safari) -->
+<input type="file" id="input-folder" webkitdirectory multiple accept="*/*">
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
 <aside class="w-60 bg-[#16002B] text-slate-200 flex flex-col shrink-0 overflow-y-auto select-none"
        style="min-width:15rem">
 
@@ -129,7 +110,7 @@ HTML = f"""<!DOCTYPE html>
     <p class="text-xs text-slate-400 mt-0.5">Gestión Documental Empresarial</p>
   </div>
 
-  <!-- Nav principal -->
+  <!-- Nav -->
   <nav class="px-2 pt-3 space-y-0.5">
     <button id="nav-inicio" onclick="navActivar('inicio')"
       class="sidebar-active w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium">
@@ -137,11 +118,7 @@ HTML = f"""<!DOCTYPE html>
     </button>
     <button id="nav-explorador" onclick="navActivar('explorador')"
       class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-purple-900/50 hover:text-white font-medium">
-      <i data-lucide="folder-open" class="w-4 h-4 text-amber-400 shrink-0"></i> Explorador de Archivos
-    </button>
-    <button id="nav-buscar" onclick="navActivar('buscar')"
-      class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-purple-900/50 hover:text-white font-medium">
-      <i data-lucide="search" class="w-4 h-4 shrink-0"></i> Buscar
+      <i data-lucide="folder-open" class="w-4 h-4 text-amber-400 shrink-0"></i> Explorador
     </button>
     <button id="nav-favoritos" onclick="navActivar('favoritos')"
       class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-purple-900/50 hover:text-white font-medium">
@@ -205,54 +182,45 @@ HTML = f"""<!DOCTYPE html>
       </button>
     </div>
   </div>
-
 </aside>
 
-<!-- ══════════════════ ÁREA PRINCIPAL ══════════════════ -->
+<!-- ══════════════ ÁREA PRINCIPAL ══════════════ -->
 <main class="flex-1 flex flex-col overflow-hidden">
 
   <!-- TOPBAR -->
   <header class="h-14 bg-white border-b border-slate-200 px-4 flex items-center gap-3 shrink-0 shadow-sm z-20">
-    <!-- Búsqueda -->
     <div class="relative flex-1 max-w-lg">
       <input id="buscador-top" oninput="aplicarFiltros()" type="text"
-        placeholder="Buscar archivos por nombre, tipo, extensión..."
-        class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-slate-700
+        placeholder="Buscar archivos por nombre, extensión..."
+        class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2
                placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition">
       <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
     </div>
 
-    <!-- Filtro tipo -->
     <select id="filtro-tipo-top" onchange="aplicarFiltros()"
       class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-600
              focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer">
       <option value="">Todos los tipos</option>
-      <option value="folder">Carpetas</option>
-      <option value="pdf">PDF</option>
-      <option value="doc">Word (doc/docx)</option>
-      <option value="xls">Excel (xls/xlsx)</option>
-      <option value="ppt">PowerPoint</option>
-      <option value="img">Imágenes</option>
-      <option value="vid">Videos</option>
-      <option value="mp3">Audio</option>
-      <option value="zip">Comprimidos</option>
-      <option value="txt">Texto / Markdown</option>
-      <option value="code">Código fuente</option>
+      <option value="folder">📁 Carpetas</option>
+      <option value="pdf">📄 PDF</option>
+      <option value="doc">📝 Word</option>
+      <option value="xls">📊 Excel</option>
+      <option value="ppt">📑 PowerPoint</option>
+      <option value="img">🖼️ Imágenes</option>
+      <option value="vid">🎬 Videos</option>
+      <option value="mp3">🎵 Audio</option>
+      <option value="zip">🗜️ Comprimidos</option>
+      <option value="txt">📃 Texto</option>
+      <option value="code">💻 Código</option>
     </select>
 
-    <!-- BOTÓN ABRIR — se desactiva si no hay FS API -->
-    <button id="btn-abrir-dir" onclick="abrirDirectorio()"
-      class="fs-unavailable flex items-center gap-2 bg-[#5B21B6] hover:bg-[#4C1D95]
+    <!-- BOTÓN ABRIR — siempre activo en todos los navegadores -->
+    <button onclick="abrirDirectorio()"
+      class="flex items-center gap-2 bg-[#5B21B6] hover:bg-[#4C1D95]
              text-white text-sm font-bold px-4 py-2 rounded-lg shadow transition">
       <i data-lucide="folder-open" class="w-4 h-4"></i> Abrir Carpeta
     </button>
 
-    <!-- Aviso navegador incompatible -->
-    <span class="fs-unavailable-hint text-xs text-red-500 font-semibold">
-      Requiere Edge / Chrome
-    </span>
-
-    <!-- Ordenar -->
     <select id="ordenar-por" onchange="aplicarFiltros()"
       class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-600
              focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer">
@@ -262,7 +230,6 @@ HTML = f"""<!DOCTYPE html>
       <option value="fecha">↓ Fecha</option>
     </select>
 
-    <!-- Vista lista / grid -->
     <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden shrink-0">
       <button id="btn-vista-lista" onclick="cambiarVista('lista')" title="Vista lista"
         class="px-2.5 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 transition">
@@ -291,7 +258,7 @@ HTML = f"""<!DOCTYPE html>
                   p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <img src="{logo_data}" alt="Pelitos Veterinaria"
-               class="h-16 object-contain mb-3"
+               class="h-14 object-contain mb-3"
                style="filter:brightness(0) invert(1);">
           <p class="text-purple-200 text-sm font-semibold">Tu biblioteca empresarial veterinaria</p>
           <p class="text-white/70 text-xs mt-1">Documentos organizados para un crecimiento sostenible</p>
@@ -299,102 +266,123 @@ HTML = f"""<!DOCTYPE html>
         <div class="text-right text-white">
           <p class="text-base font-bold">Cuidamos vidas,</p>
           <p class="text-base font-bold">impulsamos sueños <span class="text-pink-300">❤️</span></p>
-          <button id="btn-explorar-hero" onclick="abrirDirectorio()"
-            class="fs-unavailable mt-3 bg-amber-400 hover:bg-amber-300 text-amber-900 font-bold
+          <button onclick="abrirDirectorio()"
+            class="mt-3 bg-amber-400 hover:bg-amber-300 text-amber-900 font-bold
                    text-sm px-5 py-2 rounded-lg shadow transition flex items-center gap-2 ml-auto">
             <i data-lucide="folder-open" class="w-4 h-4"></i> Explorar mis archivos
           </button>
-          <p class="fs-unavailable-hint text-xs text-red-300 mt-2 font-semibold">
-            El explorador requiere Edge o Chrome
-          </p>
         </div>
         <div class="absolute right-5 bottom-3 opacity-10 text-white text-8xl select-none pointer-events-none">🐾</div>
       </div>
 
-      <!-- Unidades de Negocio -->
+      <!-- Unidades de Negocio — SIN contadores hardcodeados -->
       <div>
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Unidades de Negocio</h3>
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
           <div onclick="selUnidad('Consultorio Veterinario')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="stethoscope" class="w-4 h-4 text-blue-600 shrink-0"></i><span class="text-xs font-bold text-slate-800 leading-tight">Consultorio Veterinario</span></div>
-            <p class="text-xs text-slate-400 font-medium text-right mt-1">328 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="stethoscope" class="w-4 h-4 text-blue-600 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800 leading-tight">Consultorio Veterinario</span>
+            </div>
           </div>
           <div onclick="selUnidad('Estética Canina')" class="cursor-pointer bg-pink-50 p-3 rounded-xl border-2 border-pink-400 shadow-sm hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="scissors" class="w-4 h-4 text-pink-500 shrink-0"></i><span class="text-xs font-bold text-slate-800 leading-tight">Estética Canina</span></div>
-            <p class="text-xs text-pink-600 font-bold text-right mt-1">214 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="scissors" class="w-4 h-4 text-pink-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800 leading-tight">Estética Canina</span>
+            </div>
           </div>
           <div onclick="selUnidad('Laboratorio Veterinario')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-emerald-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="flask-conical" class="w-4 h-4 text-emerald-600 shrink-0"></i><span class="text-xs font-bold text-slate-800 leading-tight">Laboratorio Veterinario</span></div>
-            <p class="text-xs text-slate-400 font-medium text-right mt-1">156 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="flask-conical" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800 leading-tight">Laboratorio Veterinario</span>
+            </div>
           </div>
           <div onclick="selUnidad('Farmacia Veterinaria')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-orange-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="pill" class="w-4 h-4 text-orange-500 shrink-0"></i><span class="text-xs font-bold text-slate-800 leading-tight">Farmacia Veterinaria</span></div>
-            <p class="text-xs text-slate-400 font-medium text-right mt-1">142 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="pill" class="w-4 h-4 text-orange-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800 leading-tight">Farmacia Veterinaria</span>
+            </div>
           </div>
           <div onclick="selUnidad('Pet Shop')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="shopping-cart" class="w-4 h-4 text-amber-500 shrink-0"></i><span class="text-xs font-bold text-slate-800 leading-tight">Pet Shop</span></div>
-            <p class="text-xs text-slate-400 font-medium text-right mt-1">118 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="shopping-cart" class="w-4 h-4 text-amber-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800 leading-tight">Pet Shop</span>
+            </div>
           </div>
           <div onclick="selUnidad('Pelitos Móvil')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-sky-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="truck" class="w-4 h-4 text-sky-500 shrink-0"></i><span class="text-xs font-bold text-slate-800 leading-tight">Pelitos Móvil</span></div>
-            <p class="text-xs text-slate-400 font-medium text-right mt-1">87 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="truck" class="w-4 h-4 text-sky-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800 leading-tight">Pelitos Móvil</span>
+            </div>
           </div>
           <div onclick="selUnidad('Hospedaje de Mascotas')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-purple-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="house" class="w-4 h-4 text-purple-500 shrink-0"></i><span class="text-xs font-bold text-slate-800 leading-tight">Hospedaje de Mascotas</span></div>
-            <p class="text-xs text-slate-400 font-medium text-right mt-1">64 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="house" class="w-4 h-4 text-purple-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800 leading-tight">Hospedaje de Mascotas</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Servicios Compartidos -->
+      <!-- Servicios Compartidos — SIN contadores hardcodeados -->
       <div>
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Servicios Compartidos</h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           <div onclick="selUnidad('Recepción y Clientes')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="headset" class="w-4 h-4 text-blue-500 shrink-0"></i><span class="text-xs font-bold text-slate-800">Recepción y Clientes</span></div>
-            <p class="text-xs text-slate-400 text-right mt-1">96 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="headset" class="w-4 h-4 text-blue-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800">Recepción y Clientes</span>
+            </div>
           </div>
           <div onclick="selUnidad('Recursos Humanos')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-sky-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="users" class="w-4 h-4 text-sky-500 shrink-0"></i><span class="text-xs font-bold text-slate-800">Recursos Humanos</span></div>
-            <p class="text-xs text-slate-400 text-right mt-1">73 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4 text-sky-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800">Recursos Humanos</span>
+            </div>
           </div>
           <div onclick="selUnidad('Marketing Corporativo')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-purple-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="megaphone" class="w-4 h-4 text-purple-600 shrink-0"></i><span class="text-xs font-bold text-slate-800">Marketing Corporativo</span></div>
-            <p class="text-xs text-slate-400 text-right mt-1">142 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="megaphone" class="w-4 h-4 text-purple-600 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800">Marketing Corporativo</span>
+            </div>
           </div>
           <div onclick="selUnidad('Compras y Logística')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-amber-500 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="package" class="w-4 h-4 text-amber-600 shrink-0"></i><span class="text-xs font-bold text-slate-800">Compras y Logística</span></div>
-            <p class="text-xs text-slate-400 text-right mt-1">61 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="package" class="w-4 h-4 text-amber-600 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800">Compras y Logística</span>
+            </div>
           </div>
           <div onclick="selUnidad('Tecnología y Software')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-blue-500 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="laptop" class="w-4 h-4 text-blue-500 shrink-0"></i><span class="text-xs font-bold text-slate-800">Tecnología y Software</span></div>
-            <p class="text-xs text-slate-400 text-right mt-1">52 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="laptop" class="w-4 h-4 text-blue-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800">Tecnología y Software</span>
+            </div>
           </div>
           <div onclick="selUnidad('Calidad y Auditoría')" class="cursor-pointer bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-emerald-400 hover:shadow transition flex flex-col gap-1">
-            <div class="flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4 text-emerald-500 shrink-0"></i><span class="text-xs font-bold text-slate-800">Calidad y Auditoría</span></div>
-            <p class="text-xs text-slate-400 text-right mt-1">38 docs</p>
+            <div class="flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500 shrink-0"></i>
+              <span class="text-xs font-bold text-slate-800">Calidad y Auditoría</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- CTA Explorador -->
-      <div id="panel-cta" onclick="abrirDirectorio()"
-        class="fs-unavailable bg-white rounded-2xl border-2 border-dashed border-purple-300 p-10
+      <!-- CTA Explorador — compatible con todos los navegadores -->
+      <div onclick="abrirDirectorio()"
+        class="bg-white rounded-2xl border-2 border-dashed border-purple-300 p-10
                flex flex-col items-center justify-center text-center shadow-inner cursor-pointer
                hover:border-purple-500 hover:bg-purple-50/50 transition">
         <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-300/40 mb-4">
           <i data-lucide="folder-open" class="w-9 h-9 text-white"></i>
         </div>
-        <h3 class="text-base font-bold text-slate-800 mb-1">Explorar archivos de Windows</h3>
+        <h3 class="text-base font-bold text-slate-800 mb-1">Explorar archivos de tu computadora</h3>
         <p class="text-sm text-slate-500 max-w-sm leading-relaxed">
-          Haz clic para seleccionar una carpeta de tu computadora.<br>
-          Soporta <strong>PDF, Word, Excel, PowerPoint, Imágenes, Videos, Audio, ZIP, Texto, Código</strong> y más.
+          Haz clic para seleccionar una carpeta. Compatible con<br>
+          <strong>Chrome, Edge, Firefox, Safari</strong> y cualquier navegador moderno.
         </p>
-        <p class="text-sm text-purple-500 mt-3 font-bold animate-pulse-slow">▶ Haz clic aquí o en "Abrir Carpeta"</p>
-      </div>
-      <div class="fs-unavailable-hint bg-red-50 border border-red-200 rounded-xl p-4 text-center text-sm text-red-700 font-semibold">
-        ⚠️ Tu navegador (<span id="lbl-browser"></span>) no soporta File System Access API.<br>
-        Usa <strong>Microsoft Edge</strong> o <strong>Google Chrome</strong> versión reciente.
+        <p class="text-sm text-purple-500 mt-3 font-bold animate-pulse-slow">▶ Haz clic aquí para comenzar</p>
+        <!-- Badge de soporte detectado dinámicamente por JS -->
+        <p id="lbl-modo-api" class="text-xs text-slate-400 mt-2"></p>
       </div>
 
     </section>
@@ -410,22 +398,22 @@ HTML = f"""<!DOCTYPE html>
         <span class="text-slate-400 font-medium">Selecciona una carpeta...</span>
       </div>
 
-      <!-- Stats -->
+      <!-- Stats — solo se muestran si hay datos reales -->
       <div class="grid grid-cols-4 gap-2">
         <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
-          <p id="stat-total" class="text-xl font-black text-purple-700">0</p>
+          <p id="stat-total" class="text-xl font-black text-purple-700">—</p>
           <p class="text-xs text-slate-500 mt-0.5">Archivos</p>
         </div>
         <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
-          <p id="stat-carpetas" class="text-xl font-black text-amber-600">0</p>
+          <p id="stat-carpetas" class="text-xl font-black text-amber-600">—</p>
           <p class="text-xs text-slate-500 mt-0.5">Carpetas</p>
         </div>
         <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
-          <p id="stat-tamano" class="text-xl font-black text-emerald-700">0</p>
+          <p id="stat-tamano" class="text-xl font-black text-emerald-700">—</p>
           <p class="text-xs text-slate-500 mt-0.5">Tamaño total</p>
         </div>
         <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
-          <p id="stat-tipos" class="text-xl font-black text-blue-600">0</p>
+          <p id="stat-tipos" class="text-xl font-black text-blue-600">—</p>
           <p class="text-xs text-slate-500 mt-0.5">Tipos distintos</p>
         </div>
       </div>
@@ -434,31 +422,34 @@ HTML = f"""<!DOCTYPE html>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex"
            style="height:calc(100vh - 340px); min-height:380px;">
 
-        <!-- ÁRBOL -->
-        <div class="w-52 border-r border-slate-100 p-2 overflow-y-auto bg-slate-50/50 shrink-0">
+        <!-- ÁRBOL (solo visible en modo FS API) -->
+        <div id="panel-arbol" class="w-52 border-r border-slate-100 p-2 overflow-y-auto bg-slate-50/50 shrink-0">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Árbol de directorios</p>
           <div id="arbol-dir" class="space-y-0.5">
             <p class="text-slate-400 px-2 py-6 text-center text-xs">Sin datos</p>
           </div>
+          <p id="nota-arbol-flat" class="text-xs text-slate-400 text-center py-2 hidden">
+            (Vista plana: sin árbol)
+          </p>
         </div>
 
         <!-- TABLA -->
         <div class="flex-1 flex flex-col overflow-hidden">
           <!-- Sub-header -->
           <div class="border-b border-slate-100 px-4 py-2 flex items-center gap-3 bg-white shrink-0">
-            <span id="label-ruta-actual"
-              class="text-xs text-slate-500 font-mono truncate flex-1 select-all"
-              title="Directorio actual">Seleccione una carpeta</span>
-            <button onclick="subirNivel()" title="Subir un nivel"
-              class="text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50">
+            <span id="label-ruta-actual" class="text-xs text-slate-500 font-mono truncate flex-1 select-all">
+              Seleccione una carpeta
+            </span>
+            <button onclick="subirNivel()" title="Subir un nivel" id="btn-subir"
+              class="text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50 hidden">
               <i data-lucide="arrow-up" class="w-4 h-4"></i>
             </button>
-            <button onclick="actualizarDirectorio()" title="Actualizar directorio"
+            <button onclick="actualizarDirectorio()" title="Actualizar"
               class="text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50">
               <i data-lucide="refresh-cw" class="w-4 h-4"></i>
             </button>
-            <button onclick="abrirDirectorio()" title="Cambiar carpeta raíz"
-              class="fs-unavailable text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50">
+            <button onclick="abrirDirectorio()" title="Cambiar carpeta"
+              class="text-slate-400 hover:text-purple-600 transition p-1 rounded hover:bg-purple-50">
               <i data-lucide="folder-open" class="w-4 h-4"></i>
             </button>
           </div>
@@ -478,7 +469,7 @@ HTML = f"""<!DOCTYPE html>
                       onclick="ordenarPor('fecha')">Modificado ↕</th>
                   <th class="py-2.5 px-3 font-semibold cursor-pointer hover:text-slate-800 select-none text-right"
                       onclick="ordenarPor('tamano')">Tamaño ↕</th>
-                  <th class="py-2.5 px-3 font-semibold text-center">Acción</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Acc.</th>
                 </tr>
               </thead>
               <tbody id="tabla-body" class="divide-y divide-slate-50 text-sm">
@@ -486,7 +477,7 @@ HTML = f"""<!DOCTYPE html>
                   <i data-lucide="folder-open" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
                   <p class="text-sm font-medium">Aún no has abierto ninguna carpeta.</p>
                   <button onclick="abrirDirectorio()"
-                    class="fs-unavailable mt-3 text-purple-600 hover:underline text-sm font-semibold">
+                    class="mt-3 text-purple-600 hover:underline text-sm font-semibold">
                     Haz clic aquí para comenzar →
                   </button>
                 </td></tr>
@@ -523,12 +514,12 @@ HTML = f"""<!DOCTYPE html>
               <button onclick="copiarRutaInspector()"
                 class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium
                        py-1.5 px-1 rounded-lg flex items-center justify-center gap-1">
-                <i data-lucide="copy" class="w-3 h-3"></i> Copiar ruta
+                <i data-lucide="copy" class="w-3 h-3"></i> Ruta
               </button>
               <button onclick="toggleFavoritoInspector()" id="btn-fav-inspector"
                 class="bg-slate-100 hover:bg-amber-50 text-slate-700 text-xs font-medium
                        py-1.5 px-1 rounded-lg flex items-center justify-center gap-1">
-                <i data-lucide="star" class="w-3 h-3 text-amber-500"></i> Favorito
+                <i data-lucide="star" class="w-3 h-3 text-amber-500"></i> Fav.
               </button>
             </div>
           </div>
@@ -536,7 +527,7 @@ HTML = f"""<!DOCTYPE html>
 
       </div>
 
-      <!-- Vista grid (oculta por default) -->
+      <!-- Vista grid -->
       <div id="vista-grid" class="hidden">
         <div id="grid-archivos"
           class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2"></div>
@@ -563,16 +554,7 @@ HTML = f"""<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- ══ VISTA BUSCAR (misma tabla de explorador si hay datos) ══ -->
-    <section id="vista-buscar" class="hidden">
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center text-slate-400">
-        <i data-lucide="search" class="w-10 h-10 mx-auto mb-3"></i>
-        <p class="text-base font-semibold text-slate-700">Búsqueda Global</p>
-        <p class="text-sm mt-2">Abre el Explorador de Archivos y usa el buscador de la barra superior para filtrar.</p>
-      </div>
-    </section>
-
-  </div><!-- /content scroll -->
+  </div>
 </main>
 
 <!-- TOAST -->
@@ -592,100 +574,97 @@ HTML = f"""<!DOCTYPE html>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-//  PELITOS DOCS — Explorador de Archivos Windows
-//  File System Access API | Senior Dev Edition (bugs corregidos)
+//  PELITOS DOCS — Explorador Universal (Chrome, Edge, Firefox, Safari)
+//  Estrategia dual:
+//    MODO A: showDirectoryPicker()  → Chrome/Edge (árbol completo)
+//    MODO B: <input webkitdirectory> → Firefox/Safari/todos (lista plana)
 // ════════════════════════════════════════════════════════════════════
 
-// ─── Utilidad: escape HTML para prevenir XSS ─────────────────────────
-function esc(str) {{
-  return String(str)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}}
+const FS_API = 'showDirectoryPicker' in window;  // ¿Soporta FS Access API?
 
-// ─── Estado global ────────────────────────────────────────────────
+// ─── Estado global ─────────────────────────────────────────────────
 const state = {{
-  dirHandle   : null,       // DirectoryHandle raíz
-  currentHandle: null,      // DirectoryHandle actual
-  currentEntries: [],       // Array de entradas (objetos entry)
-  filtrados   : [],         // Subconjunto filtrado (mismas referencias)
-  selObj      : null,       // Objeto entry seleccionado (no índice → bug #4 corregido)
-  selSet      : new Set(),  // Set de objetos entry seleccionados
-  navStack    : [],         // Historial de handles para breadcrumb
-  favoritos   : new Set(),  // Nombres en favoritos (String)
-  recientes   : [],         // Últimos archivos abiertos
-  vistaActual : 'lista',
-  loadVersion : 0,          // Versión de carga (race condition fix #3)
-  toastTimer  : null,       // Timer del toast (fix #5)
+  currentEntries : [],   // Entradas del directorio actual
+  filtrados      : [],   // Subconjunto filtrado
+  selObj         : null, // Objeto entry seleccionado
+  selSet         : new Set(),
+  navStack       : [],   // Solo modo A (FS API)
+  currentHandle  : null, // Solo modo A
+  dirHandle      : null, // Solo modo A
+  favoritos      : new Set(),
+  recientes      : [],
+  vistaActual    : 'lista',
+  loadVersion    : 0,
+  toastTimer     : null,
+  modoAPI        : false, // true = FS API, false = input fallback
 }};
 
-// ─── Metadatos de extensiones ─────────────────────────────────────
+// ─── Utilidades ───────────────────────────────────────────────────
 const EXT_META = {{
-  pdf   :{{ label:'PDF',        badge:'ext-pdf',   icon:'file-text',       color:'text-red-600'    }},
-  doc   :{{ label:'Word',       badge:'ext-doc',   icon:'file-text',       color:'text-blue-600'   }},
-  docx  :{{ label:'Word',       badge:'ext-doc',   icon:'file-text',       color:'text-blue-600'   }},
-  xls   :{{ label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet',color:'text-emerald-600'}},
-  xlsx  :{{ label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet',color:'text-emerald-600'}},
-  xlsm  :{{ label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet',color:'text-emerald-600'}},
-  csv   :{{ label:'CSV',        badge:'ext-xls',   icon:'file-spreadsheet',color:'text-emerald-700'}},
-  ppt   :{{ label:'PowerPoint', badge:'ext-ppt',   icon:'presentation',    color:'text-orange-600' }},
-  pptx  :{{ label:'PowerPoint', badge:'ext-ppt',   icon:'presentation',    color:'text-orange-600' }},
-  jpg   :{{ label:'Imagen JPG', badge:'ext-img',   icon:'image',           color:'text-pink-600'   }},
-  jpeg  :{{ label:'Imagen JPG', badge:'ext-img',   icon:'image',           color:'text-pink-600'   }},
-  png   :{{ label:'Imagen PNG', badge:'ext-img',   icon:'image',           color:'text-pink-600'   }},
-  gif   :{{ label:'GIF',        badge:'ext-img',   icon:'image',           color:'text-pink-500'   }},
-  bmp   :{{ label:'Imagen BMP', badge:'ext-img',   icon:'image',           color:'text-pink-500'   }},
-  svg   :{{ label:'SVG',        badge:'ext-img',   icon:'image',           color:'text-purple-600' }},
-  webp  :{{ label:'WebP',       badge:'ext-img',   icon:'image',           color:'text-pink-500'   }},
-  tiff  :{{ label:'TIFF',       badge:'ext-img',   icon:'image',           color:'text-pink-500'   }},
-  mp4   :{{ label:'Video MP4',  badge:'ext-vid',   icon:'video',           color:'text-purple-600' }},
-  mov   :{{ label:'Video MOV',  badge:'ext-vid',   icon:'video',           color:'text-purple-600' }},
-  avi   :{{ label:'Video AVI',  badge:'ext-vid',   icon:'video',           color:'text-purple-500' }},
-  mkv   :{{ label:'Video MKV',  badge:'ext-vid',   icon:'video',           color:'text-purple-500' }},
-  wmv   :{{ label:'Video WMV',  badge:'ext-vid',   icon:'video',           color:'text-purple-500' }},
-  webm  :{{ label:'Video WebM', badge:'ext-vid',   icon:'video',           color:'text-purple-500' }},
-  mp3   :{{ label:'Audio MP3',  badge:'ext-mp3',   icon:'music',           color:'text-violet-600' }},
-  wav   :{{ label:'Audio WAV',  badge:'ext-mp3',   icon:'music',           color:'text-violet-600' }},
-  flac  :{{ label:'Audio FLAC', badge:'ext-mp3',   icon:'music',           color:'text-violet-600' }},
-  ogg   :{{ label:'Audio OGG',  badge:'ext-mp3',   icon:'music',           color:'text-violet-600' }},
-  m4a   :{{ label:'Audio M4A',  badge:'ext-mp3',   icon:'music',           color:'text-violet-600' }},
-  zip   :{{ label:'ZIP',        badge:'ext-zip',   icon:'archive',         color:'text-orange-600' }},
-  rar   :{{ label:'RAR',        badge:'ext-zip',   icon:'archive',         color:'text-orange-600' }},
-  '7z'  :{{ label:'7-Zip',      badge:'ext-zip',   icon:'archive',         color:'text-orange-600' }},
-  tar   :{{ label:'TAR',        badge:'ext-zip',   icon:'archive',         color:'text-orange-600' }},
-  gz    :{{ label:'GZIP',       badge:'ext-zip',   icon:'archive',         color:'text-orange-600' }},
-  txt   :{{ label:'Texto',      badge:'ext-txt',   icon:'file-text',       color:'text-slate-600'  }},
-  md    :{{ label:'Markdown',   badge:'ext-txt',   icon:'file-text',       color:'text-slate-600'  }},
-  json  :{{ label:'JSON',       badge:'ext-js',    icon:'braces',          color:'text-yellow-700' }},
-  xml   :{{ label:'XML',        badge:'ext-txt',   icon:'file-code',       color:'text-slate-600'  }},
-  html  :{{ label:'HTML',       badge:'ext-html',  icon:'file-code',       color:'text-rose-600'   }},
-  htm   :{{ label:'HTML',       badge:'ext-html',  icon:'file-code',       color:'text-rose-600'   }},
-  css   :{{ label:'CSS',        badge:'ext-html',  icon:'file-code',       color:'text-blue-500'   }},
-  js    :{{ label:'JavaScript', badge:'ext-js',    icon:'file-code',       color:'text-yellow-700' }},
-  ts    :{{ label:'TypeScript', badge:'ext-js',    icon:'file-code',       color:'text-blue-600'   }},
-  py    :{{ label:'Python',     badge:'ext-code',  icon:'file-code',       color:'text-green-700'  }},
-  java  :{{ label:'Java',       badge:'ext-code',  icon:'file-code',       color:'text-red-700'    }},
-  cpp   :{{ label:'C++',        badge:'ext-code',  icon:'file-code',       color:'text-slate-700'  }},
-  cs    :{{ label:'C#',         badge:'ext-code',  icon:'file-code',       color:'text-purple-700' }},
-  go    :{{ label:'Go',         badge:'ext-code',  icon:'file-code',       color:'text-sky-700'    }},
-  rb    :{{ label:'Ruby',       badge:'ext-code',  icon:'file-code',       color:'text-red-600'    }},
-  sql   :{{ label:'SQL',        badge:'ext-code',  icon:'database',        color:'text-orange-700' }},
-  sh    :{{ label:'Script',     badge:'ext-code',  icon:'terminal',        color:'text-slate-700'  }},
-  bat   :{{ label:'Batch',      badge:'ext-code',  icon:'terminal',        color:'text-slate-700'  }},
-  exe   :{{ label:'Ejecutable', badge:'ext-default',icon:'cpu',            color:'text-slate-700'  }},
-  dll   :{{ label:'DLL',        badge:'ext-default',icon:'cpu',            color:'text-slate-700'  }},
-  psd   :{{ label:'Photoshop',  badge:'ext-img',   icon:'image',           color:'text-blue-700'   }},
-  ai    :{{ label:'Illustrator',badge:'ext-img',   icon:'image',           color:'text-orange-700' }},
-  fig   :{{ label:'Figma',      badge:'ext-img',   icon:'image',           color:'text-purple-700' }},
+  pdf  :{{label:'PDF',        badge:'ext-pdf',   icon:'file-text',        color:'text-red-600'    }},
+  doc  :{{label:'Word',       badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
+  docx :{{label:'Word',       badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
+  xls  :{{label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
+  xlsx :{{label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
+  xlsm :{{label:'Excel',      badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
+  csv  :{{label:'CSV',        badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-700'}},
+  ppt  :{{label:'PowerPoint', badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
+  pptx :{{label:'PowerPoint', badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
+  jpg  :{{label:'Imagen JPG', badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
+  jpeg :{{label:'Imagen JPG', badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
+  png  :{{label:'Imagen PNG', badge:'ext-img',   icon:'image',            color:'text-pink-600'   }},
+  gif  :{{label:'GIF',        badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  bmp  :{{label:'BMP',        badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  svg  :{{label:'SVG',        badge:'ext-img',   icon:'image',            color:'text-purple-600' }},
+  webp :{{label:'WebP',       badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  tiff :{{label:'TIFF',       badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
+  mp4  :{{label:'Video MP4',  badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
+  mov  :{{label:'Video MOV',  badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
+  avi  :{{label:'Video AVI',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  mkv  :{{label:'Video MKV',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  wmv  :{{label:'Video WMV',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  webm :{{label:'Video WebM', badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
+  mp3  :{{label:'Audio MP3',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  wav  :{{label:'Audio WAV',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  flac :{{label:'Audio FLAC', badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  ogg  :{{label:'Audio OGG',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  m4a  :{{label:'Audio M4A',  badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
+  zip  :{{label:'ZIP',        badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  rar  :{{label:'RAR',        badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  '7z' :{{label:'7-Zip',      badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  tar  :{{label:'TAR',        badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  gz   :{{label:'GZIP',       badge:'ext-zip',   icon:'archive',          color:'text-orange-600' }},
+  txt  :{{label:'Texto',      badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
+  md   :{{label:'Markdown',   badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
+  json :{{label:'JSON',       badge:'ext-js',    icon:'braces',           color:'text-yellow-700' }},
+  xml  :{{label:'XML',        badge:'ext-txt',   icon:'file-code',        color:'text-slate-600'  }},
+  html :{{label:'HTML',       badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
+  htm  :{{label:'HTML',       badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
+  css  :{{label:'CSS',        badge:'ext-html',  icon:'file-code',        color:'text-blue-500'   }},
+  js   :{{label:'JavaScript', badge:'ext-js',    icon:'file-code',        color:'text-yellow-700' }},
+  ts   :{{label:'TypeScript', badge:'ext-js',    icon:'file-code',        color:'text-blue-600'   }},
+  py   :{{label:'Python',     badge:'ext-code',  icon:'file-code',        color:'text-green-700'  }},
+  java :{{label:'Java',       badge:'ext-code',  icon:'file-code',        color:'text-red-700'    }},
+  cpp  :{{label:'C++',        badge:'ext-code',  icon:'file-code',        color:'text-slate-700'  }},
+  cs   :{{label:'C#',         badge:'ext-code',  icon:'file-code',        color:'text-purple-700' }},
+  go   :{{label:'Go',         badge:'ext-code',  icon:'file-code',        color:'text-sky-700'    }},
+  rb   :{{label:'Ruby',       badge:'ext-code',  icon:'file-code',        color:'text-red-600'    }},
+  sql  :{{label:'SQL',        badge:'ext-code',  icon:'database',         color:'text-orange-700' }},
+  sh   :{{label:'Script',     badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
+  bat  :{{label:'Batch',      badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
+  exe  :{{label:'Ejecutable', badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
+  dll  :{{label:'DLL',        badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
+  psd  :{{label:'Photoshop',  badge:'ext-img',   icon:'image',            color:'text-blue-700'   }},
+  ai   :{{label:'Illustrator',badge:'ext-img',   icon:'image',            color:'text-orange-700' }},
+  fig  :{{label:'Figma',      badge:'ext-img',   icon:'image',            color:'text-purple-700' }},
 }};
 
 function getExtMeta(nombre, esDir) {{
-  if (esDir) return {{ label:'Carpeta', badge:'folder-badge', icon:'folder', color:'text-amber-500' }};
+  if (esDir) return {{label:'Carpeta', badge:'folder-badge', icon:'folder', color:'text-amber-500'}};
   const ext = nombre.includes('.') ? nombre.split('.').pop().toLowerCase() : '';
-  return EXT_META[ext] || {{ label: ext ? ext.toUpperCase() : 'Archivo', badge:'ext-default', icon:'file', color:'text-slate-500' }};
+  return EXT_META[ext] || {{label: ext ? ext.toUpperCase() : 'Archivo', badge:'ext-default', icon:'file', color:'text-slate-500'}};
 }}
 
-// ─── Formateo ─────────────────────────────────────────────────────
 function formatSize(bytes) {{
   if (bytes == null || bytes < 0) return '—';
   if (bytes === 0) return '0 B';
@@ -699,97 +678,164 @@ function formatDate(ts) {{
   if (!ts) return '—';
   try {{
     return new Intl.DateTimeFormat('es-PE',{{
-      day:'2-digit', month:'2-digit', year:'numeric',
-      hour:'2-digit', minute:'2-digit'
+      day:'2-digit',month:'2-digit',year:'numeric',
+      hour:'2-digit',minute:'2-digit'
     }}).format(new Date(ts));
   }} catch {{ return '—'; }}
 }}
 
-// ─── FS Access API ────────────────────────────────────────────────
-async function abrirDirectorio() {{
-  if (!('showDirectoryPicker' in window)) {{
-    toast('Tu navegador no soporta File System Access API. Usa Edge o Chrome.', true);
-    return;
+// ─── APERTURA DE CARPETA — MODO DUAL ──────────────────────────────
+function abrirDirectorio() {{
+  if (FS_API) {{
+    abrirConFsApi();
+  }} else {{
+    // Fallback universal: dispara el input file
+    document.getElementById('input-folder').click();
   }}
+}}
+
+// MODO A: File System Access API (Chrome / Edge)
+async function abrirConFsApi() {{
   try {{
-    const handle = await window.showDirectoryPicker({{ mode:'read' }});
-    state.dirHandle   = handle;
+    const handle = await window.showDirectoryPicker({{mode:'read'}});
+    state.dirHandle    = handle;
     state.currentHandle = handle;
-    state.navStack    = [handle];
-    await cargarEntradas(handle);
+    state.navStack     = [handle];
+    state.modoAPI      = true;
+    document.getElementById('panel-arbol').style.display = '';
+    document.getElementById('nota-arbol-flat').classList.add('hidden');
+    document.getElementById('btn-subir').classList.remove('hidden');
+    await cargarEntradasAPI(handle);
     navActivar('explorador');
   }} catch(e) {{
     if (e.name !== 'AbortError') toast('Error al abrir carpeta: ' + e.message, true);
   }}
 }}
 
-async function cargarEntradas(dirHandle) {{
-  // FIX #3 — Race condition: ignorar respuestas de versiones anteriores
+// MODO B: input[type=file webkitdirectory] (Firefox / Safari / todos)
+document.getElementById('input-folder').addEventListener('change', function(e) {{
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  state.modoAPI = false;
+  document.getElementById('panel-arbol').style.display = 'none';
+  document.getElementById('nota-arbol-flat').classList.remove('hidden');
+  document.getElementById('btn-subir').classList.add('hidden');
+  cargarEntradasPlanas(files);
+  navActivar('explorador');
+  // Resetear el input para poder volver a abrir la misma carpeta
+  e.target.value = '';
+}});
+
+// ─── MODO A: cargar desde FS API ──────────────────────────────────
+async function cargarEntradasAPI(dirHandle) {{
   const version = ++state.loadVersion;
   mostrarLoading('Leyendo archivos...', dirHandle.name);
   try {{
     const entries = [];
     let totalSize = 0;
     for await (const [name, handle] of dirHandle.entries()) {{
-      if (version !== state.loadVersion) {{ ocultarLoading(); return; }} // cancelado
+      if (version !== state.loadVersion) {{ ocultarLoading(); return; }}
       let size = null, lastMod = null;
       if (handle.kind === 'file') {{
         try {{
           const file = await handle.getFile();
-          size = file.size;
-          lastMod = file.lastModified;
-          totalSize += file.size;
-        }} catch {{ /* sin permiso o bloqueado */ }}
+          size = file.size; lastMod = file.lastModified; totalSize += file.size;
+        }} catch {{ /* sin permiso */ }}
       }}
-      entries.push({{ name, handle, kind: handle.kind, size, lastMod }});
+      entries.push({{name, handle, kind: handle.kind, size, lastMod, fileObj: null}});
     }}
     if (version !== state.loadVersion) {{ ocultarLoading(); return; }}
-
     entries.sort((a,b) => {{
       if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
       return a.name.localeCompare(b.name, 'es', {{sensitivity:'base'}});
     }});
-
-    // FIX #12 — Resetear filtros al cambiar carpeta
-    state.currentEntries = entries;
-    state.filtrados      = [];
-    state.selObj         = null;
-    state.selSet         = new Set();
-
-    // Resetear controles de filtro
-    const buscador = document.getElementById('buscador-top');
-    if (buscador) buscador.value = '';
-    const filtroTipo = document.getElementById('filtro-tipo-top');
-    if (filtroTipo) filtroTipo.value = '';
-
-    renderTabla(entries);
-    renderArbol();
-    actualizarStats(entries, totalSize);
-    actualizarBreadcrumb();
-    actualizarInspector(null);
-    const lbl = document.getElementById('label-ruta-actual');
-    if (lbl) lbl.textContent = dirHandle.name + '/';
-
+    aplicarNuevasEntradas(entries, totalSize, dirHandle.name);
   }} catch(e) {{
     toast('Error al leer el directorio: ' + e.message, true);
   }}
   ocultarLoading();
 }}
 
+// ─── MODO B: cargar desde FileList plano ──────────────────────────
+function cargarEntradasPlanas(files) {{
+  mostrarLoading('Procesando archivos...', files.length + ' archivos');
+  try {{
+    let totalSize = 0;
+    const nombreCarpeta = files[0]?.webkitRelativePath?.split('/')[0] || 'Carpeta seleccionada';
+
+    // Agrupar: archivos directos de la raíz + subcarpetas de primer nivel
+    const entradasMap = new Map(); // nombre → entry
+
+    files.forEach(f => {{
+      const partes = f.webkitRelativePath.split('/');
+      if (partes.length === 2) {{
+        // Archivo directo en la raíz
+        const nombre = partes[1];
+        totalSize += f.size;
+        entradasMap.set(nombre, {{
+          name: nombre, kind:'file', size: f.size,
+          lastMod: f.lastModified, handle: null, fileObj: f
+        }});
+      }} else if (partes.length >= 3) {{
+        // Subcarpeta de primer nivel
+        const carpeta = partes[1];
+        if (!entradasMap.has(carpeta)) {{
+          entradasMap.set(carpeta, {{
+            name: carpeta, kind:'directory', size: null,
+            lastMod: null, handle: null, fileObj: null
+          }});
+        }}
+      }}
+    }});
+
+    const entries = Array.from(entradasMap.values());
+    entries.sort((a,b) => {{
+      if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name, 'es', {{sensitivity:'base'}});
+    }});
+
+    const lbl = document.getElementById('label-ruta-actual');
+    if (lbl) lbl.textContent = nombreCarpeta + '/ (vista plana)';
+    aplicarNuevasEntradas(entries, totalSize, nombreCarpeta);
+  }} catch(e) {{
+    toast('Error al procesar archivos: ' + e.message, true);
+  }}
+  ocultarLoading();
+}}
+
+function aplicarNuevasEntradas(entries, totalSize, nombreDir) {{
+  state.currentEntries = entries;
+  state.filtrados      = [];
+  state.selObj         = null;
+  state.selSet         = new Set();
+
+  const buscador = document.getElementById('buscador-top');
+  if (buscador) buscador.value = '';
+  const filtroTipo = document.getElementById('filtro-tipo-top');
+  if (filtroTipo) filtroTipo.value = '';
+
+  renderTabla(entries);
+  if (state.modoAPI) renderArbol();
+  actualizarStats(entries, totalSize);
+  actualizarBreadcrumb(nombreDir);
+  actualizarInspector(null);
+}}
+
+// ─── Stats ─────────────────────────────────────────────────────────
 function actualizarStats(entries, totalSize) {{
   const carpetas = entries.filter(e => e.kind === 'directory').length;
   const archivos = entries.filter(e => e.kind === 'file').length;
   const tipos    = new Set(entries.filter(e => e.kind==='file')
                     .map(e => e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '_')).size;
-  document.getElementById('stat-total').textContent   = archivos;
-  document.getElementById('stat-carpetas').textContent = carpetas;
-  document.getElementById('stat-tamano').textContent   = formatSize(totalSize);
-  document.getElementById('stat-tipos').textContent    = tipos;
-  document.getElementById('status-bar').textContent    =
+  document.getElementById('stat-total').textContent    = archivos;
+  document.getElementById('stat-carpetas').textContent  = carpetas;
+  document.getElementById('stat-tamano').textContent    = formatSize(totalSize);
+  document.getElementById('stat-tipos').textContent     = tipos;
+  document.getElementById('status-bar').textContent     =
     entries.length + ' elementos (' + archivos + ' archivos, ' + carpetas + ' carpetas)';
 }}
 
-// ─── Render de la tabla ───────────────────────────────────────────
+// ─── Render Tabla ─────────────────────────────────────────────────
 function renderTabla(entries) {{
   const tbody = document.getElementById('tabla-body');
   tbody.innerHTML = '';
@@ -805,36 +851,32 @@ function renderTabla(entries) {{
     return;
   }}
 
-  // Fila ".." para subir nivel
-  if (state.navStack.length > 1) {{
+  // Fila ".." solo en modo API con navegación profunda
+  if (state.modoAPI && state.navStack.length > 1) {{
     const trUp = document.createElement('tr');
     trUp.className = 'cursor-pointer hover:bg-slate-50 transition';
     trUp.ondblclick = subirNivel;
-
     const tdChk = document.createElement('td');
     tdChk.className = 'py-2.5 px-3';
     trUp.appendChild(tdChk);
-
     const tdName = document.createElement('td');
     tdName.colSpan = 5;
     tdName.className = 'py-2.5 px-3';
-    const wrapper = document.createElement('div');
-    wrapper.className = 'flex items-center gap-2 text-slate-400 text-sm hover:text-purple-600';
-    const icon = document.createElement('i');
-    icon.setAttribute('data-lucide','corner-left-up');
-    icon.className = 'w-4 h-4';
-    const span = document.createElement('span');
-    span.className = 'font-medium';
-    span.textContent = '.. (subir un nivel)';
-    wrapper.appendChild(icon);
-    wrapper.appendChild(span);
-    tdName.appendChild(wrapper);
+    const w = document.createElement('div');
+    w.className = 'flex items-center gap-2 text-slate-400 text-sm hover:text-purple-600';
+    const ic = document.createElement('i');
+    ic.setAttribute('data-lucide','corner-left-up');
+    ic.className = 'w-4 h-4';
+    const sp = document.createElement('span');
+    sp.className = 'font-medium';
+    sp.textContent = '.. (subir un nivel)';
+    w.appendChild(ic); w.appendChild(sp);
+    tdName.appendChild(w);
     trUp.appendChild(tdName);
     tbody.appendChild(trUp);
   }}
 
-  // FIX #4 — usamos el objeto entry como clave de selección (no índice)
-  entries.forEach((entry) => {{
+  entries.forEach(entry => {{
     const meta       = getExtMeta(entry.name, entry.kind === 'directory');
     const isSelected = state.selSet.has(entry);
     const tr = document.createElement('tr');
@@ -846,26 +888,25 @@ function renderTabla(entries) {{
     const tdChk = document.createElement('td');
     tdChk.className = 'py-2.5 px-3';
     const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = isSelected;
+    chk.type = 'checkbox'; chk.checked = isSelected;
     chk.className = 'rounded text-purple-600 focus:ring-0 w-3.5 h-3.5';
     chk.onclick = (e) => {{ e.stopPropagation(); toggleSel(entry); }};
     tdChk.appendChild(chk);
     tr.appendChild(tdChk);
 
-    // Nombre — FIX #1 XSS: usar textContent para el nombre
+    // Nombre — textContent previene XSS
     const tdName = document.createElement('td');
     tdName.className = 'py-2.5 px-3';
     const nameDiv = document.createElement('div');
     nameDiv.className = 'flex items-center gap-2';
-    const lucideIcon = document.createElement('i');
-    lucideIcon.setAttribute('data-lucide', meta.icon);
-    lucideIcon.className = 'w-4 h-4 ' + meta.color + ' shrink-0';
+    const lIcon = document.createElement('i');
+    lIcon.setAttribute('data-lucide', meta.icon);
+    lIcon.className = 'w-4 h-4 ' + meta.color + ' shrink-0';
     const nameSpan = document.createElement('span');
     nameSpan.className = 'font-medium text-slate-800 truncate max-w-xs text-sm';
     nameSpan.title = entry.name;
-    nameSpan.textContent = entry.name; // ← textContent previene XSS
-    nameDiv.appendChild(lucideIcon);
+    nameSpan.textContent = entry.name;
+    nameDiv.appendChild(lIcon);
     nameDiv.appendChild(nameSpan);
     if (state.favoritos.has(entry.name)) {{
       const starI = document.createElement('i');
@@ -904,12 +945,12 @@ function renderTabla(entries) {{
     }}
     tr.appendChild(tdSize);
 
-    // Acción rápida
+    // Acción
     const tdAcc = document.createElement('td');
     tdAcc.className = 'py-2.5 px-3 text-center';
     const btnAcc = document.createElement('button');
     btnAcc.className = 'text-slate-300 hover:text-purple-600 transition p-1 rounded';
-    btnAcc.title = 'Más acciones';
+    btnAcc.title = 'Seleccionar';
     btnAcc.onclick = (e) => {{ e.stopPropagation(); seleccionar(entry, null); }};
     const moreI = document.createElement('i');
     moreI.setAttribute('data-lucide','more-horizontal');
@@ -924,24 +965,23 @@ function renderTabla(entries) {{
   if (window.lucide) lucide.createIcons();
 }}
 
-// ─── Árbol de directorios ─────────────────────────────────────────
+// ─── Árbol (solo modo API) ─────────────────────────────────────────
 function renderArbol() {{
   const arbol = document.getElementById('arbol-dir');
   arbol.innerHTML = '';
   state.navStack.forEach((h, idx) => {{
-    const div = document.createElement('div');
     const isCurrent = idx === state.navStack.length - 1;
+    const div = document.createElement('div');
     div.className = 'flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer ' +
       (isCurrent ? 'tree-active' : 'text-slate-600 hover:bg-slate-200/60');
     div.style.paddingLeft = (8 + idx * 10) + 'px';
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide', idx === 0 ? 'hard-drive' : 'folder');
     icon.className = 'w-3.5 h-3.5 shrink-0 ' + (isCurrent ? 'text-amber-600' : 'text-amber-500');
-    const span = document.createElement('span');
-    span.className = 'truncate text-xs font-medium';
-    span.textContent = h.name;
-    div.appendChild(icon);
-    div.appendChild(span);
+    const sp = document.createElement('span');
+    sp.className = 'truncate text-xs font-medium';
+    sp.textContent = h.name;
+    div.appendChild(icon); div.appendChild(sp);
     div.onclick = () => navArbol(idx);
     arbol.appendChild(div);
   }});
@@ -949,25 +989,38 @@ function renderArbol() {{
 }}
 
 async function navArbol(idx) {{
-  if (idx === state.navStack.length - 1) return;
+  if (!state.modoAPI || idx === state.navStack.length - 1) return;
   state.navStack = state.navStack.slice(0, idx + 1);
   state.currentHandle = state.navStack[state.navStack.length - 1];
-  await cargarEntradas(state.currentHandle);
+  await cargarEntradasAPI(state.currentHandle);
 }}
 
-// ─── Navegación de archivos ───────────────────────────────────────
+// ─── Abrir entrada ────────────────────────────────────────────────
 async function abrirEntrada(entry) {{
   if (!entry) return;
   if (entry.kind === 'directory') {{
-    state.navStack.push(entry.handle);
-    state.currentHandle = entry.handle;
-    await cargarEntradas(entry.handle);
+    if (state.modoAPI && entry.handle) {{
+      state.navStack.push(entry.handle);
+      state.currentHandle = entry.handle;
+      await cargarEntradasAPI(entry.handle);
+    }} else {{
+      toast('Navegación interna no disponible en modo Firefox/Safari. Selecciona una subcarpeta desde el botón Abrir Carpeta.', false);
+    }}
   }} else {{
     try {{
-      const file = await entry.handle.getFile();
+      let file;
+      if (entry.fileObj) {{
+        // Modo B: File object ya disponible
+        file = entry.fileObj;
+      }} else if (entry.handle) {{
+        // Modo A: obtener desde FileSystemFileHandle
+        file = await entry.handle.getFile();
+      }} else {{
+        toast('No se puede abrir este archivo', true);
+        return;
+      }}
       const url = URL.createObjectURL(file);
-      const win = window.open(url, '_blank');
-      // FIX #2 — Memory leak: revocar URL de objeto después de 60 segundos
+      window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
       addReciente(entry);
       toast('Abriendo: ' + entry.name);
@@ -978,19 +1031,24 @@ async function abrirEntrada(entry) {{
 }}
 
 async function subirNivel() {{
-  if (state.navStack.length <= 1) return;
+  if (!state.modoAPI || state.navStack.length <= 1) return;
   state.navStack.pop();
   state.currentHandle = state.navStack[state.navStack.length - 1];
-  await cargarEntradas(state.currentHandle);
+  await cargarEntradasAPI(state.currentHandle);
 }}
 
 async function actualizarDirectorio() {{
-  if (!state.currentHandle) {{ toast('No hay carpeta abierta.', true); return; }}
-  await cargarEntradas(state.currentHandle);
-  toast('Directorio actualizado');
+  if (state.modoAPI && state.currentHandle) {{
+    await cargarEntradasAPI(state.currentHandle);
+    toast('Directorio actualizado');
+  }} else if (!state.modoAPI && state.currentEntries.length) {{
+    toast('Vuelve a abrir la carpeta para actualizar.');
+  }} else {{
+    toast('No hay carpeta abierta.', true);
+  }}
 }}
 
-// ─── Selección (FIX #4: usar objeto, no índice) ───────────────────
+// ─── Selección ────────────────────────────────────────────────────
 function seleccionar(entry, event) {{
   if (event && event.ctrlKey) {{
     if (state.selSet.has(entry)) state.selSet.delete(entry);
@@ -1000,8 +1058,7 @@ function seleccionar(entry, event) {{
   }}
   state.selObj = entry;
   actualizarInspector(entry);
-  const lista = state.filtrados.length ? state.filtrados : state.currentEntries;
-  renderTabla(lista);
+  renderTabla(state.filtrados.length ? state.filtrados : state.currentEntries);
   document.getElementById('status-sel').textContent = state.selSet.size + ' seleccionados';
 }}
 
@@ -1011,7 +1068,6 @@ function toggleSel(entry) {{
   document.getElementById('status-sel').textContent = state.selSet.size + ' seleccionados';
 }}
 
-// FIX #13 — selTodos usa objetos reales del filtrado
 function selTodos(chk) {{
   const lista = state.filtrados.length ? state.filtrados : state.currentEntries;
   if (chk.checked) lista.forEach(e => state.selSet.add(e));
@@ -1026,17 +1082,13 @@ function actualizarInspector(entry) {{
   const actions = document.getElementById('inspector-actions');
   if (!entry) {{
     body.innerHTML = '';
-    const wrapper = document.createElement('div');
-    wrapper.className = 'text-center text-slate-300 py-10';
-    const icon = document.createElement('i');
-    icon.setAttribute('data-lucide','file-search');
-    icon.className = 'w-9 h-9 mx-auto mb-2';
+    const w = document.createElement('div');
+    w.className = 'text-center text-slate-300 py-10';
+    w.innerHTML = '<i data-lucide="file-search" class="w-9 h-9 mx-auto mb-2"></i>';
     const p = document.createElement('p');
-    p.className = 'text-sm';
-    p.textContent = 'Selecciona un archivo o carpeta';
-    wrapper.appendChild(icon);
-    wrapper.appendChild(p);
-    body.appendChild(wrapper);
+    p.className = 'text-sm'; p.textContent = 'Selecciona un archivo';
+    w.appendChild(p);
+    body.appendChild(w);
     actions.classList.add('hidden');
     if (window.lucide) lucide.createIcons();
     return;
@@ -1045,80 +1097,66 @@ function actualizarInspector(entry) {{
   const isFav = state.favoritos.has(entry.name);
 
   body.innerHTML = '';
-
-  // Ícono grande — usando DOM (no innerHTML con datos del usuario = FIX XSS)
-  const iconBox = document.createElement('div');
-  iconBox.className = 'flex flex-col items-center py-3 border-b border-slate-100';
-  const iconWrapper = document.createElement('div');
-  iconWrapper.className = 'w-14 h-14 rounded-xl flex items-center justify-center bg-slate-100 mb-2';
-  const bigIcon = document.createElement('i');
-  bigIcon.setAttribute('data-lucide', meta.icon);
-  bigIcon.className = 'w-8 h-8 ' + meta.color;
-  iconWrapper.appendChild(bigIcon);
+  const topBox = document.createElement('div');
+  topBox.className = 'flex flex-col items-center py-3 border-b border-slate-100';
+  const iconW = document.createElement('div');
+  iconW.className = 'w-14 h-14 rounded-xl flex items-center justify-center bg-slate-100 mb-2';
+  const bIcon = document.createElement('i');
+  bIcon.setAttribute('data-lucide', meta.icon);
+  bIcon.className = 'w-8 h-8 ' + meta.color;
+  iconW.appendChild(bIcon);
   const nameP = document.createElement('p');
   nameP.className = 'font-bold text-slate-800 text-center text-xs break-all leading-tight px-1';
   nameP.textContent = entry.name;
-  const badgeSpan = document.createElement('span');
-  badgeSpan.className = 'ext-badge ' + meta.badge + ' mt-1';
-  badgeSpan.textContent = meta.label;
-  iconBox.appendChild(iconWrapper);
-  iconBox.appendChild(nameP);
-  iconBox.appendChild(badgeSpan);
-  body.appendChild(iconBox);
+  const badgeSp = document.createElement('span');
+  badgeSp.className = 'ext-badge ' + meta.badge + ' mt-1';
+  badgeSp.textContent = meta.label;
+  topBox.appendChild(iconW); topBox.appendChild(nameP); topBox.appendChild(badgeSp);
+  body.appendChild(topBox);
 
-  // Metadatos
-  const meta_container = document.createElement('div');
-  meta_container.className = 'space-y-1.5 text-xs pt-2';
-  const rows = [
+  const metaDiv = document.createElement('div');
+  metaDiv.className = 'space-y-1.5 text-xs pt-2';
+  [
     ['Tipo',      meta.label],
-    ['Tamaño',    entry.kind==='directory' ? '—' : formatSize(entry.size)],
+    ['Tamaño',    entry.kind==='directory'?'—':formatSize(entry.size)],
     ['Modificado',formatDate(entry.lastMod)],
-    ['Directorio',state.currentHandle?.name || ''],
-  ];
-  rows.forEach(([label, value]) => {{
+  ].forEach(([label, value]) => {{
     const row = document.createElement('div');
     row.className = 'flex justify-between gap-1';
     const lbl = document.createElement('span');
-    lbl.className = 'text-slate-400';
-    lbl.textContent = label + ':';
+    lbl.className = 'text-slate-400'; lbl.textContent = label + ':';
     const val = document.createElement('span');
-    val.className = 'font-semibold text-slate-700 text-right truncate max-w-[7rem]';
-    val.textContent = value;
-    val.title = value;
-    row.appendChild(lbl);
-    row.appendChild(val);
-    meta_container.appendChild(row);
+    val.className = 'font-semibold text-slate-700 text-right truncate max-w-[8rem]';
+    val.textContent = value; val.title = value;
+    row.appendChild(lbl); row.appendChild(val);
+    metaDiv.appendChild(row);
   }});
   if (isFav) {{
     const favRow = document.createElement('div');
-    favRow.className = 'flex items-center gap-1 text-amber-600 font-semibold mt-1';
+    favRow.className = 'flex items-center gap-1 text-amber-600 font-semibold mt-1 text-xs';
     favRow.innerHTML = '<i data-lucide="star" class="w-3 h-3 fill-amber-400"></i> En favoritos';
-    meta_container.appendChild(favRow);
+    metaDiv.appendChild(favRow);
   }}
-  body.appendChild(meta_container);
+  body.appendChild(metaDiv);
 
   actions.classList.remove('hidden');
-
-  // Actualizar texto botón favorito
   const btnFav = document.getElementById('btn-fav-inspector');
   btnFav.innerHTML =
-    '<i data-lucide="star" class="w-3 h-3 ' + (isFav ? 'text-amber-400 fill-amber-400' : 'text-slate-400') + '"></i> ' +
-    (isFav ? 'Quitar' : 'Favorito');
-
+    '<i data-lucide="star" class="w-3 h-3 ' + (isFav?'text-amber-400 fill-amber-400':'text-slate-400') + '"></i> ' +
+    (isFav ? 'Quitar' : 'Fav.');
   if (window.lucide) lucide.createIcons();
 }}
 
 async function abrirDocumento() {{
-  if (!state.selObj) return;
-  await abrirEntrada(state.selObj);
+  if (state.selObj) await abrirEntrada(state.selObj);
 }}
 
 function copiarRutaInspector() {{
   if (!state.selObj) return;
-  const ruta = (state.currentHandle?.name || '') + '\\\\' + state.selObj.name;
+  const ruta = (state.currentHandle?.name || 'carpeta') + '\\\\' + state.selObj.name;
   navigator.clipboard.writeText(ruta)
-    .then(() => toast('Ruta copiada: ' + ruta))
-    .catch(() => toast('Error al copiar la ruta', true));
+    .then(() => toast('Ruta copiada'))
+    .catch(() => toast('Error al copiar', true));
 }}
 
 function toggleFavoritoInspector() {{
@@ -1126,21 +1164,19 @@ function toggleFavoritoInspector() {{
   const nombre = state.selObj.name;
   if (state.favoritos.has(nombre)) {{
     state.favoritos.delete(nombre);
-    toast('Removido de favoritos: ' + nombre);
+    toast('Removido de favoritos');
   }} else {{
     state.favoritos.add(nombre);
-    toast('Agregado a favoritos: ' + nombre);
+    toast('Favorito: ' + nombre);
   }}
   actualizarInspector(state.selObj);
-  const lista = state.filtrados.length ? state.filtrados : state.currentEntries;
-  renderTabla(lista);
+  renderTabla(state.filtrados.length ? state.filtrados : state.currentEntries);
   renderListaFavoritos();
 }}
 
-// ─── Filtros (FIX #6: buscarEnTabla eliminado; input llama directo aplicarFiltros) ─
+// ─── Filtros ──────────────────────────────────────────────────────
 function aplicarFiltros() {{
   if (!state.currentEntries.length) return;
-
   const q    = (document.getElementById('buscador-top')?.value || '').toLowerCase().trim();
   const tipo = document.getElementById('filtro-tipo-top')?.value || '';
   const ord  = document.getElementById('ordenar-por')?.value || 'nombre';
@@ -1154,39 +1190,33 @@ function aplicarFiltros() {{
       const ext = entry.name.includes('.') ? entry.name.split('.').pop().toLowerCase() : '';
       const m = EXT_META[ext];
       switch(tipo) {{
-        case 'pdf':  matchTipo = ext === 'pdf'; break;
-        case 'doc':  matchTipo = ['doc','docx'].includes(ext); break;
-        case 'xls':  matchTipo = ['xls','xlsx','xlsm','csv'].includes(ext); break;
-        case 'ppt':  matchTipo = ['ppt','pptx'].includes(ext); break;
-        case 'img':  matchTipo = m?.badge === 'ext-img'; break;
-        case 'vid':  matchTipo = m?.badge === 'ext-vid'; break;
-        case 'mp3':  matchTipo = m?.badge === 'ext-mp3'; break;
-        case 'zip':  matchTipo = m?.badge === 'ext-zip'; break;
-        case 'txt':  matchTipo = m?.badge === 'ext-txt'; break;
+        case 'pdf' : matchTipo = ext === 'pdf'; break;
+        case 'doc' : matchTipo = ['doc','docx'].includes(ext); break;
+        case 'xls' : matchTipo = ['xls','xlsx','xlsm','csv'].includes(ext); break;
+        case 'ppt' : matchTipo = ['ppt','pptx'].includes(ext); break;
+        case 'img' : matchTipo = m?.badge === 'ext-img'; break;
+        case 'vid' : matchTipo = m?.badge === 'ext-vid'; break;
+        case 'mp3' : matchTipo = m?.badge === 'ext-mp3'; break;
+        case 'zip' : matchTipo = m?.badge === 'ext-zip'; break;
+        case 'txt' : matchTipo = m?.badge === 'ext-txt'; break;
         case 'code': matchTipo = ['ext-code','ext-js','ext-html'].includes(m?.badge || ''); break;
       }}
     }}
     return matchQ && matchTipo;
   }});
 
-  // FIX #8 — Ordenar: va/vb con valor por defecto para evitar comparación undefined
   resultado.sort((a, b) => {{
-    // Siempre carpetas primero
     if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
-    let va = a.name.toLowerCase(), vb = b.name.toLowerCase(); // default = nombre
+    let va = a.name.toLowerCase(), vb = b.name.toLowerCase();
     if (ord === 'tipo') {{
       va = a.name.includes('.') ? a.name.split('.').pop().toLowerCase() : '';
       vb = b.name.includes('.') ? b.name.split('.').pop().toLowerCase() : '';
     }} else if (ord === 'tamano') {{
-      va = a.size ?? -1;
-      vb = b.size ?? -1;
+      va = a.size ?? -1; vb = b.size ?? -1;
     }} else if (ord === 'fecha') {{
-      va = a.lastMod ?? 0;
-      vb = b.lastMod ?? 0;
+      va = a.lastMod ?? 0; vb = b.lastMod ?? 0;
     }}
-    if (va < vb) return -1;
-    if (va > vb) return  1;
-    return 0;
+    if (va < vb) return -1; if (va > vb) return 1; return 0;
   }});
 
   state.filtrados = resultado;
@@ -1196,7 +1226,6 @@ function aplicarFiltros() {{
     resultado.length + ' de ' + state.currentEntries.length + ' elementos';
 }}
 
-// FIX #7 — ordenarPor mapea correctamente todos los valores
 function ordenarPor(col) {{
   const sel = document.getElementById('ordenar-por');
   if (sel) sel.value = col;
@@ -1210,7 +1239,6 @@ function cambiarVista(tipo) {{
   const gridContainer = document.getElementById('vista-grid');
   const btnLista     = document.getElementById('btn-vista-lista');
   const btnGrid      = document.getElementById('btn-vista-grid');
-
   if (tipo === 'lista') {{
     tablaScroll.classList.remove('hidden');
     gridContainer.classList.add('hidden');
@@ -1229,69 +1257,72 @@ function cambiarVista(tipo) {{
 function renderGrid(entries) {{
   const grid = document.getElementById('grid-archivos');
   grid.innerHTML = '';
-  entries.forEach((entry) => {{
+  entries.forEach(entry => {{
     const meta = getExtMeta(entry.name, entry.kind === 'directory');
     const div = document.createElement('div');
     div.className = 'cursor-pointer bg-white border border-slate-200 rounded-xl p-2.5 flex flex-col items-center text-center hover:border-purple-400 hover:shadow transition select-none';
     div.ondblclick = () => abrirEntrada(entry);
     div.onclick    = () => seleccionar(entry, null);
-
     const iconBox = document.createElement('div');
     iconBox.className = 'w-11 h-11 flex items-center justify-center rounded-lg bg-slate-50 mb-1.5';
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide', meta.icon);
     icon.className = 'w-7 h-7 ' + meta.color;
     iconBox.appendChild(icon);
-
     const nameP = document.createElement('p');
     nameP.className = 'text-xs text-slate-700 font-medium break-all leading-tight max-h-9 overflow-hidden';
-    nameP.title = entry.name;
-    nameP.textContent = entry.name;
-
-    const badgeSpan = document.createElement('span');
-    badgeSpan.className = 'ext-badge ' + meta.badge + ' mt-1';
-    badgeSpan.textContent = meta.label;
-
-    div.appendChild(iconBox);
-    div.appendChild(nameP);
-    div.appendChild(badgeSpan);
-
+    nameP.title = entry.name; nameP.textContent = entry.name;
+    const badgeSp = document.createElement('span');
+    badgeSp.className = 'ext-badge ' + meta.badge + ' mt-1';
+    badgeSp.textContent = meta.label;
+    div.appendChild(iconBox); div.appendChild(nameP); div.appendChild(badgeSp);
     if (entry.kind === 'file') {{
       const sizeP = document.createElement('p');
       sizeP.className = 'text-xs text-slate-400 mt-0.5';
       sizeP.textContent = formatSize(entry.size);
       div.appendChild(sizeP);
     }}
-
     grid.appendChild(div);
   }});
   if (window.lucide) lucide.createIcons();
 }}
 
 // ─── Breadcrumb ───────────────────────────────────────────────────
-function actualizarBreadcrumb() {{
+function actualizarBreadcrumb(nombreDir) {{
   const bar = document.getElementById('breadcrumb-bar');
   bar.innerHTML = '';
-  state.navStack.forEach((h, idx) => {{
-    if (idx > 0) {{
-      const sep = document.createElement('i');
-      sep.setAttribute('data-lucide','chevron-right');
-      sep.className = 'w-3.5 h-3.5 text-slate-300 shrink-0';
-      bar.appendChild(sep);
-    }}
+  if (state.modoAPI) {{
+    state.navStack.forEach((h, idx) => {{
+      if (idx > 0) {{
+        const sep = document.createElement('i');
+        sep.setAttribute('data-lucide','chevron-right');
+        sep.className = 'w-3.5 h-3.5 text-slate-300 shrink-0';
+        bar.appendChild(sep);
+      }}
+      const span = document.createElement('span');
+      const isCurrent = idx === state.navStack.length - 1;
+      span.className = 'cursor-pointer text-sm ' + (isCurrent
+        ? 'text-purple-700 font-bold'
+        : 'text-slate-500 hover:text-purple-600 hover:underline');
+      span.textContent = h.name;
+      span.onclick = () => navArbol(idx);
+      bar.appendChild(span);
+    }});
+  }} else {{
+    // Modo B: mostrar solo el nombre de la carpeta seleccionada
     const span = document.createElement('span');
-    const isCurrent = idx === state.navStack.length - 1;
-    span.className = 'cursor-pointer text-sm ' + (isCurrent
-      ? 'text-purple-700 font-bold'
-      : 'text-slate-500 hover:text-purple-600 hover:underline');
-    span.textContent = h.name;
-    span.onclick = () => navArbol(idx);
+    span.className = 'text-sm text-purple-700 font-bold';
+    span.textContent = nombreDir || 'Carpeta seleccionada';
     bar.appendChild(span);
-  }});
+    const note = document.createElement('span');
+    note.className = 'text-xs text-slate-400 ml-2';
+    note.textContent = '(vista raíz — modo compatible)';
+    bar.appendChild(note);
+  }}
   if (window.lucide) lucide.createIcons();
 }}
 
-// ─── Recientes ────────────────────────────────────────────────────
+// ─── Recientes y Favoritos ────────────────────────────────────────
 function addReciente(entry) {{
   state.recientes = [entry, ...state.recientes.filter(r => r.name !== entry.name)].slice(0, 20);
   renderListaRecientes();
@@ -1301,23 +1332,21 @@ function renderListaRecientes() {{
   const cont = document.getElementById('lista-recientes');
   const empty = document.getElementById('lbl-rec-empty');
   if (!cont || !empty) return;
-  if (state.recientes.length === 0) {{ cont.classList.add('hidden'); empty.classList.remove('hidden'); return; }}
-  empty.classList.add('hidden');
-  cont.classList.remove('hidden');
+  if (!state.recientes.length) {{ cont.classList.add('hidden'); empty.classList.remove('hidden'); return; }}
+  empty.classList.add('hidden'); cont.classList.remove('hidden');
   cont.innerHTML = '';
   state.recientes.forEach(entry => {{
     const div = document.createElement('div');
     div.className = 'flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer';
     div.onclick = () => abrirEntrada(entry);
-    const meta = getExtMeta(entry.name, entry.kind === 'directory');
+    const meta = getExtMeta(entry.name, false);
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide', meta.icon);
     icon.className = 'w-4 h-4 ' + meta.color + ' shrink-0';
     const sp = document.createElement('span');
     sp.className = 'text-sm text-slate-700 font-medium truncate';
     sp.textContent = entry.name;
-    div.appendChild(icon);
-    div.appendChild(sp);
+    div.appendChild(icon); div.appendChild(sp);
     cont.appendChild(div);
   }});
   if (window.lucide) lucide.createIcons();
@@ -1327,73 +1356,57 @@ function renderListaFavoritos() {{
   const cont = document.getElementById('lista-favoritos');
   const empty = document.getElementById('lbl-fav-empty');
   if (!cont || !empty) return;
-  if (state.favoritos.size === 0) {{ cont.classList.add('hidden'); empty.classList.remove('hidden'); return; }}
-  empty.classList.add('hidden');
-  cont.classList.remove('hidden');
+  if (!state.favoritos.size) {{ cont.classList.add('hidden'); empty.classList.remove('hidden'); return; }}
+  empty.classList.add('hidden'); cont.classList.remove('hidden');
   cont.innerHTML = '';
   state.favoritos.forEach(nombre => {{
     const div = document.createElement('div');
-    div.className = 'flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-amber-50 cursor-default';
+    div.className = 'flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-amber-50';
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide','star');
     icon.className = 'w-4 h-4 text-amber-400 fill-amber-400 shrink-0';
     const sp = document.createElement('span');
     sp.className = 'text-sm text-slate-700 font-medium truncate';
     sp.textContent = nombre;
-    div.appendChild(icon);
-    div.appendChild(sp);
+    div.appendChild(icon); div.appendChild(sp);
     cont.appendChild(div);
   }});
   if (window.lucide) lucide.createIcons();
 }}
 
-// ─── Navegación de secciones (FIX #9: todas las vistas cubiertas) ─
+// ─── Navegación de secciones ─────────────────────────────────────
 const VISTAS = {{
-  inicio     : 'vista-inicio',
-  explorador : 'vista-explorador',
-  buscar     : 'vista-buscar',
-  favoritos  : 'vista-favoritos',
-  recientes  : 'vista-recientes',
+  inicio    :'vista-inicio',
+  explorador:'vista-explorador',
+  favoritos :'vista-favoritos',
+  recientes :'vista-recientes',
 }};
-const NAV_IDS = Object.keys(VISTAS);
 
 function navActivar(sec) {{
-  state.navActiva = sec;
-
-  // Ocultar todas las vistas
   Object.values(VISTAS).forEach(id => document.getElementById(id)?.classList.add('hidden'));
-
-  // Mostrar la sección pedida (fallback a 'inicio')
-  const targetId = VISTAS[sec] || VISTAS.inicio;
-  document.getElementById(targetId)?.classList.remove('hidden');
-
-  // Actualizar clases del sidebar
-  NAV_IDS.forEach(n => {{
+  const target = VISTAS[sec] || VISTAS.inicio;
+  document.getElementById(target)?.classList.remove('hidden');
+  Object.keys(VISTAS).forEach(n => {{
     const el = document.getElementById('nav-' + n);
     if (!el) return;
     el.className = n === sec
       ? 'sidebar-active w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium'
       : 'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-purple-900/50 hover:text-white';
   }});
-
-  // Refrescar vistas dinámicas
-  if (sec === 'explorador' && state.dirHandle) {{
+  if (sec === 'explorador' && state.currentEntries.length) {{
     renderTabla(state.filtrados.length ? state.filtrados : state.currentEntries);
-    renderArbol();
-    actualizarBreadcrumb();
+    if (state.modoAPI) renderArbol();
   }}
   if (sec === 'favoritos') renderListaFavoritos();
   if (sec === 'recientes') renderListaRecientes();
-
   if (window.lucide) lucide.createIcons();
 }}
 
 function selUnidad(unidad) {{
-  toast('Cargando documentos de: ' + unidad);
+  toast('Cargando: ' + unidad);
 }}
 
 // ─── UI Helpers ───────────────────────────────────────────────────
-// FIX #10 — Loading con CSS display:none/flex en lugar de clases Tailwind mezcladas
 function mostrarLoading(msg, sub) {{
   document.getElementById('loading-msg').textContent = msg || 'Cargando...';
   document.getElementById('loading-sub').textContent = sub || 'Por favor espera';
@@ -1404,10 +1417,9 @@ function ocultarLoading() {{
   document.getElementById('loading-overlay').classList.remove('active');
 }}
 
-// FIX #5 — Toast: limpiar timer anterior antes de crear uno nuevo
 function toast(msg, isError = false) {{
-  const t  = document.getElementById('toast');
-  const m  = document.getElementById('toast-msg');
+  const t = document.getElementById('toast');
+  const m = document.getElementById('toast-msg');
   const ic = document.getElementById('toast-icon');
   m.textContent = msg;
   t.style.background = isError ? '#7F1D1D' : '#16002B';
@@ -1415,31 +1427,26 @@ function toast(msg, isError = false) {{
   ic.className = 'w-4 h-4 ' + (isError ? 'text-red-400' : 'text-emerald-400') + ' shrink-0';
   t.classList.add('show');
   if (window.lucide) lucide.createIcons();
-
-  // Cancelar timer anterior antes de crear el nuevo
   clearTimeout(state.toastTimer);
-  state.toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  state.toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }}
 
 function maximizarVentana() {{
   if (!document.fullscreenElement)
-    document.documentElement.requestFullscreen().catch(() => {{}});
+    document.documentElement.requestFullscreen().catch(()=>{{}});
   else
-    document.exitFullscreen().catch(() => {{}});
+    document.exitFullscreen().catch(()=>{{}});
 }}
 
-// ─── Inicialización ───────────────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {{
   if (window.lucide) lucide.createIcons();
-
-  // FIX #11 — Verificar API y actualizar TODA la UI, no solo un botón
-  const fsSupported = 'showDirectoryPicker' in window;
-  if (!fsSupported) {{
-    document.body.classList.add('no-fs-api');
-    // Mostrar nombre del navegador en el hint
-    const lblBrowser = document.getElementById('lbl-browser');
-    if (lblBrowser) lblBrowser.textContent = navigator.userAgent.includes('Firefox')
-      ? 'Firefox' : navigator.userAgent.includes('Safari') ? 'Safari' : 'este navegador';
+  // Informar al usuario qué modo está disponible
+  const lbl = document.getElementById('lbl-modo-api');
+  if (lbl) {{
+    lbl.textContent = FS_API
+      ? '✅ Modo avanzado disponible (Chrome/Edge) — árbol de carpetas completo'
+      : '✅ Modo compatible activo — funciona en Firefox, Safari y cualquier navegador';
   }}
 }});
 </script>
@@ -1451,5 +1458,8 @@ window.addEventListener('DOMContentLoaded', () => {{
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(HTML)
 
-print(f"index.html generado correctamente: {len(HTML):,} caracteres")
-print("Bugs corregidos: 15 | Seguridad: XSS eliminado | Rendimiento: memory leak resuelto")
+print(f"index.html generado: {len(HTML):,} caracteres")
+print("[OK] Compatible con: Chrome, Edge, Firefox, Safari")
+print("[OK] Sin contadores de documentos falsos")
+print("[OK] Modo A (FS API): arbol + navegacion jerarquica")
+print("[OK] Modo B (input fallback): lista plana universal")
