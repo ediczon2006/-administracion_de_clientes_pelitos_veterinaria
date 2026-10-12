@@ -1,25 +1,22 @@
 """
-build_pelitos_docs.py  –  v4 Multi-File & Folder Edition
-=========================================================
+build_pelitos_docs.py  –  v5 In-App Viewer, Edit & Delete Edition
+==================================================================
 ACTUALIZACIONES:
-  + SOPORTE COMPLETO PARA SUBIR CUALQUIER ARCHIVO DIRECTAMENTE:
-      - Botón "Subir Archivos" (Word, Excel, PDF, PowerPoint, Imágenes, Videos, Audio, ZIP, Código, etc.)
-      - Botón "Abrir Carpeta" (para carpetas completas)
-      - Soporte Drag & Drop: arrastrar archivos o carpetas directamente a la pantalla
-      - Acumulación de archivos: se pueden agregar más archivos sin borrar los existentes
-  + Filtros exactos por tipo:
-      - Word (.doc, .docx, .docm, .dot, .dotx)
-      - Excel (.xls, .xlsx, .xlsm, .csv, .tsv, .ods)
-      - PDF (.pdf)
-      - PowerPoint (.ppt, .pptx, .pptm)
-      - Imágenes (JPG, PNG, GIF, WebP, SVG, BMP, TIFF, PSD, AI, FIG)
-      - Videos (MP4, MOV, AVI, MKV, WMV, WebM)
-      - Audio (MP3, WAV, FLAC, OGG, M4A)
-      - Comprimidos (ZIP, RAR, 7Z, TAR, GZ)
-      - Texto (TXT, MD, XML, RTF)
-      - Código (PY, JS, TS, HTML, CSS, JSON, SQL, SH, BAT, etc.)
-  + Sin contadores falsos de documentos
-  + Compatible con todos los navegadores
+  + VISOR INTEGRADO (NO REQUIERE DESCARGAR):
+      - Word (.docx): Renderizado HTML formateado directo via Mammoth.js
+      - Excel (.xlsx, .xls, .csv): Tabla interactiva completa via SheetJS
+      - PDF (.pdf): Visor embebido en iframe dentro de la app
+      - Imágenes: Visor con ajuste responsivo
+      - Video & Audio: Reproductores HTML5 integrados
+      - Código / Texto: Visor con resaltado y tipografía monospace
+  + EDICIÓN Y RENOMBRADO:
+      - Modal de renombrado para editar el nombre de cualquier archivo
+      - Botón "Editar" en el Inspector y en la fila de cada archivo
+  + ELIMINACIÓN:
+      - Botón "Eliminar" en el Inspector y en cada fila
+      - Eliminación por lote ("Eliminar seleccionados")
+  + CERO DESCARGAS FORZADAS:
+      - Al hacer doble clic o clic en "Abrir / Ver", se abre el visor modal directamente
 """
 import base64, os
 
@@ -37,6 +34,10 @@ HTML = f"""<!DOCTYPE html>
   <title>Pelitos Docs - Gestión Documental</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Mammoth.js para previsualizar Word (.docx) directamente en el navegador sin descargar -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- SheetJS para previsualizar Excel (.xlsx, .xls, .csv) en tablas interactivas -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after {{ box-sizing:border-box; margin:0; padding:0; }}
@@ -86,6 +87,26 @@ HTML = f"""<!DOCTYPE html>
       color:white; flex-direction:column; gap:14px; pointer-events:none;
     }}
     body.drag-over .drop-zone-overlay {{ display:flex; }}
+
+    /* Tablas en visor Excel */
+    #visor-contenido table {{
+      border-collapse: collapse; width: 100%; background: white;
+    }}
+    #visor-contenido table td, #visor-contenido table th {{
+      border: 1px solid #E2E8F0; padding: 6px 12px; font-size: 12px;
+      color: #1E293B; white-space: nowrap;
+    }}
+    #visor-contenido table tr:first-child td, #visor-contenido table tr:first-child th {{
+      background: #F8FAFC; font-weight: 700; color: #475569; position: sticky; top: 0;
+    }}
+
+    /* Estilos visor Word */
+    #visor-contenido .word-doc p {{ margin-bottom: 0.75rem; line-height: 1.6; }}
+    #visor-contenido .word-doc h1 {{ font-size: 1.5rem; font-weight: 800; margin: 1rem 0 0.5rem; color: #0F172A; }}
+    #visor-contenido .word-doc h2 {{ font-size: 1.25rem; font-weight: 700; margin: 0.85rem 0 0.4rem; color: #1E293B; }}
+    #visor-contenido .word-doc h3 {{ font-size: 1.1rem; font-weight: 600; margin: 0.75rem 0 0.35rem; color: #334155; }}
+    #visor-contenido .word-doc table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+    #visor-contenido .word-doc td, #visor-contenido .word-doc th {{ border: 1px solid #CBD5E1; padding: 6px 10px; }}
 
     /* Loading */
     #loading-overlay {{
@@ -170,7 +191,7 @@ HTML = f"""<!DOCTYPE html>
       <button onclick="selUnidad('Laboratorio Veterinario')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
         <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i><span class="truncate">Laboratorio Veterinario</span>
       </button>
-      <button onclick="selUnidad('Farmacia Veterinario')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
+      <button onclick="selUnidad('Farmacia Veterinaria')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
         <i data-lucide="pill" class="w-3.5 h-3.5 text-orange-400 shrink-0"></i><span class="truncate">Farmacia Veterinaria</span>
       </button>
       <button onclick="selUnidad('Pet Shop')" class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-900/40 hover:text-white text-left font-medium">
@@ -214,7 +235,7 @@ HTML = f"""<!DOCTYPE html>
 <!-- ══════════════ ÁREA PRINCIPAL ══════════════ -->
 <main class="flex-1 flex flex-col overflow-hidden">
 
-  <!-- TOPBAR CON ACCIONES DE SUBIDA DE ARCHIVOS Y CARPETAS -->
+  <!-- TOPBAR -->
   <header class="h-14 bg-white border-b border-slate-200 px-4 flex items-center gap-3 shrink-0 shadow-sm z-20">
     <div class="relative flex-1 max-w-md">
       <input id="buscador-top" oninput="aplicarFiltros()" type="text"
@@ -224,7 +245,7 @@ HTML = f"""<!DOCTYPE html>
       <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
     </div>
 
-    <!-- Filtro de tipo con todos los formatos -->
+    <!-- Filtro de tipo -->
     <select id="filtro-tipo-top" onchange="aplicarFiltros()"
       class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-600
              focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer font-medium">
@@ -242,12 +263,12 @@ HTML = f"""<!DOCTYPE html>
       <option value="code">💻 Código</option>
     </select>
 
-    <!-- BOTONES DE CARGA: ARCHIVOS Y CARPETAS -->
+    <!-- Botones de subida de archivos y carpetas -->
     <div class="flex items-center gap-2 shrink-0">
       <button onclick="abrirArchivos()"
         class="flex items-center gap-1.5 bg-[#5B21B6] hover:bg-[#4C1D95]
                text-white text-sm font-bold px-3.5 py-2 rounded-lg shadow transition"
-        title="Subir documentos individuales o en lote (Word, Excel, PDF, imágenes...)">
+        title="Subir documentos individuales o en lote (Word, Excel, PDF, fotos...)">
         <i data-lucide="file-up" class="w-4 h-4"></i> Subir Archivos
       </button>
 
@@ -299,7 +320,7 @@ HTML = f"""<!DOCTYPE html>
                class="h-14 object-contain mb-3"
                style="filter:brightness(0) invert(1);">
           <p class="text-purple-200 text-sm font-semibold">Tu biblioteca empresarial veterinaria</p>
-          <p class="text-white/70 text-xs mt-1">Sube tus archivos Word, PDF, Excel, imágenes o abre carpetas completas</p>
+          <p class="text-white/70 text-xs mt-1">Sube tus archivos Word, PDF, Excel o carpetas completas y visualízalos al instante</p>
         </div>
         <div class="text-right text-white">
           <p class="text-base font-bold">Cuidamos vidas,</p>
@@ -412,7 +433,7 @@ HTML = f"""<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- CTA Explorador / Subir -->
+      <!-- CTA Principal -->
       <div class="bg-white rounded-2xl border-2 border-dashed border-purple-300 p-8
                   flex flex-col items-center justify-center text-center shadow-inner hover:border-purple-500 transition">
         <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-300/40 mb-3">
@@ -420,8 +441,8 @@ HTML = f"""<!DOCTYPE html>
         </div>
         <h3 class="text-base font-bold text-slate-800 mb-1">Cargar documentos o carpetas</h3>
         <p class="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
-          Puedes subir archivos individuales o carpetas completas.<br>
-          Soporta <strong>Word, Excel, PDF, PowerPoint, Imágenes, Videos, Audio, ZIP, Código</strong> y más.
+          Visualiza tus archivos directamente en pantalla <strong>sin tener que descargarlos</strong>.<br>
+          Soporta Word, Excel, PDF, imágenes, videos, audio y código.
         </p>
         <div class="flex flex-wrap items-center justify-center gap-3">
           <button onclick="abrirArchivos()"
@@ -433,7 +454,7 @@ HTML = f"""<!DOCTYPE html>
             <i data-lucide="folder-open" class="w-4 h-4 text-amber-500"></i> Seleccionar Carpeta
           </button>
         </div>
-        <p class="text-xs text-slate-400 mt-3">También puedes arrastrar y soltar cualquier archivo en la pantalla</p>
+        <p class="text-xs text-slate-400 mt-3">Arrastra y suelta cualquier archivo en la pantalla</p>
       </div>
 
     </section>
@@ -473,7 +494,7 @@ HTML = f"""<!DOCTYPE html>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex"
            style="height:calc(100vh - 340px); min-height:380px;">
 
-        <!-- ÁRBOL (visible cuando hay estructura jerárquica) -->
+        <!-- ÁRBOL -->
         <div id="panel-arbol" class="w-52 border-r border-slate-100 p-2 overflow-y-auto bg-slate-50/50 shrink-0">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Árbol de directorios</p>
           <div id="arbol-dir" class="space-y-0.5">
@@ -524,7 +545,7 @@ HTML = f"""<!DOCTYPE html>
                       onclick="ordenarPor('fecha')">Modificado ↕</th>
                   <th class="py-2.5 px-3 font-semibold cursor-pointer hover:text-slate-800 select-none text-right"
                       onclick="ordenarPor('tamano')">Tamaño ↕</th>
-                  <th class="py-2.5 px-3 font-semibold text-center">Acc.</th>
+                  <th class="py-2.5 px-3 font-semibold text-center w-24">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tabla-body" class="divide-y divide-slate-50 text-sm">
@@ -547,16 +568,22 @@ HTML = f"""<!DOCTYPE html>
             </table>
           </div>
 
-          <!-- Status bar -->
+          <!-- Status bar con botón de eliminación por lote -->
           <div class="border-t border-slate-100 px-4 py-1.5 flex items-center justify-between
                       text-xs text-slate-400 bg-slate-50 shrink-0">
             <span id="status-bar">0 elementos</span>
-            <span id="status-sel">0 seleccionados</span>
+            <div class="flex items-center gap-3">
+              <span id="status-sel">0 seleccionados</span>
+              <button id="btn-eliminar-lote" onclick="eliminarLoteSeleccionado()"
+                class="hidden text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 hover:bg-red-50 px-2 py-0.5 rounded transition">
+                <i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar seleccionados
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- INSPECTOR -->
-        <div class="w-56 border-l border-slate-100 flex flex-col shrink-0 overflow-y-auto bg-white">
+        <div class="w-60 border-l border-slate-100 flex flex-col shrink-0 overflow-y-auto bg-white">
           <div class="p-3 border-b border-slate-100">
             <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Inspector</p>
           </div>
@@ -566,21 +593,34 @@ HTML = f"""<!DOCTYPE html>
               <p class="text-sm">Selecciona un archivo</p>
             </div>
           </div>
-          <div id="inspector-actions" class="p-2 border-t border-slate-100 space-y-1.5 hidden">
+          <div id="inspector-actions" class="p-3 border-t border-slate-100 space-y-2 hidden">
+            <!-- Botón de previsualización directa -->
             <button onclick="abrirDocumento()"
               class="w-full bg-[#5B21B6] hover:bg-[#4C1D95] text-white text-xs font-bold
-                     py-2 px-2 rounded-lg shadow transition flex items-center justify-center gap-1.5">
-              <i data-lucide="eye" class="w-3.5 h-3.5"></i> Abrir / Ver
+                     py-2.5 px-3 rounded-xl shadow transition flex items-center justify-center gap-1.5">
+              <i data-lucide="eye" class="w-4 h-4"></i> Ver sin descargar
             </button>
-            <div class="grid grid-cols-2 gap-1">
+            <div class="grid grid-cols-2 gap-1.5">
+              <button onclick="abrirModalRenombrar()"
+                class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold
+                       py-2 px-2 rounded-lg flex items-center justify-center gap-1 transition">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-600"></i> Editar
+              </button>
+              <button onclick="eliminarArchivoSeleccionado()"
+                class="bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold
+                       py-2 px-2 rounded-lg flex items-center justify-center gap-1 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-600"></i> Eliminar
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
               <button onclick="copiarRutaInspector()"
                 class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium
-                       py-1.5 px-1 rounded-lg flex items-center justify-center gap-1">
-                <i data-lucide="copy" class="w-3 h-3"></i> Ruta
+                       py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition">
+                <i data-lucide="copy" class="w-3 h-3 text-slate-500"></i> Copiar nom.
               </button>
               <button onclick="toggleFavoritoInspector()" id="btn-fav-inspector"
                 class="bg-slate-100 hover:bg-amber-50 text-slate-700 text-xs font-medium
-                       py-1.5 px-1 rounded-lg flex items-center justify-center gap-1">
+                       py-1.5 px-2 rounded-lg flex items-center justify-center gap-1 transition">
                 <i data-lucide="star" class="w-3 h-3 text-amber-500"></i> Fav.
               </button>
             </div>
@@ -619,6 +659,79 @@ HTML = f"""<!DOCTYPE html>
   </div>
 </main>
 
+<!-- ══════════════ MODAL VISOR INTEGRADO (SIN DESCARGAR) ══════════════ -->
+<div id="modal-visor" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-6">
+  <div class="bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-5xl h-[88vh] overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+    <!-- Header del visor -->
+    <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+      <div class="flex items-center gap-2.5 overflow-hidden">
+        <div id="visor-icon" class="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 text-purple-700 shrink-0">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+        </div>
+        <div class="truncate">
+          <h4 id="visor-nombre" class="font-bold text-slate-800 text-sm truncate max-w-md">Documento</h4>
+          <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+            <span id="visor-badge" class="ext-badge ext-doc">Word</span>
+            <span id="visor-tamano">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button onclick="editarNombreDesdeVisor()"
+          class="text-slate-600 hover:text-purple-700 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+          title="Renombrar archivo">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-600"></i> <span class="hidden sm:inline">Renombrar</span>
+        </button>
+        <button onclick="descargarArchivoActual()"
+          class="text-slate-600 hover:text-purple-700 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+          title="Descargar copia del archivo">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Descargar</span>
+        </button>
+        <button onclick="eliminarArchivoActual()"
+          class="text-red-600 hover:text-red-700 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+          title="Eliminar archivo">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Eliminar</span>
+        </button>
+        <div class="h-4 w-px bg-slate-300 mx-1"></div>
+        <button onclick="cerrarVisor()"
+          class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-200 transition"
+          title="Cerrar visor">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+    <!-- Contenedor del visor -->
+    <div id="visor-contenido" class="flex-1 overflow-auto bg-slate-100 p-4 sm:p-6 flex items-center justify-center">
+      <!-- Se inyecta dinámicamente según el tipo de archivo -->
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL RENOMBRAR / EDITAR ══════════════ -->
+<div id="modal-renombrar" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+        <i data-lucide="edit-3" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-800">Editar nombre de archivo</h3>
+        <p class="text-xs text-slate-400">Modifica el nombre del documento</p>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <label class="block text-xs font-semibold text-slate-600">Nuevo nombre</label>
+      <input type="text" id="input-nuevo-nombre"
+        class="w-full text-sm bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition"
+        placeholder="Nombre del archivo...">
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="cerrarModalRenombrar()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
+        <button onclick="guardarNuevoNombre()" class="px-5 py-2 text-xs font-bold text-white bg-[#5B21B6] hover:bg-[#4C1D95] rounded-lg shadow transition">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" role="alert" aria-live="assertive">
   <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0" id="toast-icon"></i>
@@ -636,17 +749,17 @@ HTML = f"""<!DOCTYPE html>
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-//  PELITOS DOCS — Soporte Universal de Archivos y Carpetas
+//  PELITOS DOCS — Visor Integrado, Edición y Eliminación
 // ════════════════════════════════════════════════════════════════════
 
 const FS_API = 'showDirectoryPicker' in window;
 
 const state = {{
-  currentEntries : [],   // Lista de entradas cargadas
-  filtrados      : [],   // Lista filtrada
-  selObj         : null, // Entrada seleccionada
+  currentEntries : [],
+  filtrados      : [],
+  selObj         : null,
   selSet         : new Set(),
-  navStack       : [],   // Stack de directorios
+  navStack       : [],
   currentHandle  : null,
   dirHandle      : null,
   favoritos      : new Set(),
@@ -657,13 +770,22 @@ const state = {{
   modoAPI        : false,
 }};
 
+let entryVisorActual = null;
+let entryParaRenombrar = null;
+
+// Escapar caracteres para prevenir XSS
+function esc(str) {{
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}}
+
 // ─── Diccionario de extensiones ───────────────────────────────────
 const EXT_META = {{
   // Documentos Word
   doc   :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
   docx  :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
   docm  :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
-  dot   :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
   dotx  :{{label:'Word',        badge:'ext-doc',   icon:'file-text',        color:'text-blue-600'   }},
   // Hojas de cálculo Excel
   xls   :{{label:'Excel',       badge:'ext-xls',   icon:'file-spreadsheet', color:'text-emerald-600'}},
@@ -675,8 +797,6 @@ const EXT_META = {{
   // Presentaciones PowerPoint
   ppt   :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
   pptx  :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
-  pptm  :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
-  potx  :{{label:'PowerPoint',  badge:'ext-ppt',   icon:'presentation',     color:'text-orange-600' }},
   // PDF
   pdf   :{{label:'PDF',         badge:'ext-pdf',   icon:'file-text',        color:'text-red-600'    }},
   // Imágenes
@@ -690,13 +810,11 @@ const EXT_META = {{
   tiff  :{{label:'TIFF',        badge:'ext-img',   icon:'image',            color:'text-pink-500'   }},
   psd   :{{label:'Photoshop',   badge:'ext-img',   icon:'image',            color:'text-blue-700'   }},
   ai    :{{label:'Illustrator', badge:'ext-img',   icon:'image',            color:'text-orange-700' }},
-  fig   :{{label:'Figma',       badge:'ext-img',   icon:'image',            color:'text-purple-700' }},
   // Videos
   mp4   :{{label:'Video MP4',   badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
   mov   :{{label:'Video MOV',   badge:'ext-vid',   icon:'video',            color:'text-purple-600' }},
   avi   :{{label:'Video AVI',   badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
   mkv   :{{label:'Video MKV',   badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
-  wmv   :{{label:'Video WMV',   badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
   webm  :{{label:'Video WebM',  badge:'ext-vid',   icon:'video',            color:'text-purple-500' }},
   // Audio
   mp3   :{{label:'Audio MP3',   badge:'ext-mp3',   icon:'music',            color:'text-violet-600' }},
@@ -714,25 +832,16 @@ const EXT_META = {{
   txt   :{{label:'Texto',       badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
   md    :{{label:'Markdown',    badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
   xml   :{{label:'XML',         badge:'ext-txt',   icon:'file-code',        color:'text-slate-600'  }},
-  rtf   :{{label:'RTF',         badge:'ext-txt',   icon:'file-text',        color:'text-slate-600'  }},
   // Código
   json  :{{label:'JSON',        badge:'ext-js',    icon:'braces',           color:'text-yellow-700' }},
   html  :{{label:'HTML',        badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
-  htm   :{{label:'HTML',        badge:'ext-html',  icon:'file-code',        color:'text-rose-600'   }},
   css   :{{label:'CSS',         badge:'ext-html',  icon:'file-code',        color:'text-blue-500'   }},
   js    :{{label:'JavaScript',  badge:'ext-js',    icon:'file-code',        color:'text-yellow-700' }},
   ts    :{{label:'TypeScript',  badge:'ext-js',    icon:'file-code',        color:'text-blue-600'   }},
   py    :{{label:'Python',      badge:'ext-code',  icon:'file-code',        color:'text-green-700'  }},
-  java  :{{label:'Java',        badge:'ext-code',  icon:'file-code',        color:'text-red-700'    }},
-  cpp   :{{label:'C++',         badge:'ext-code',  icon:'file-code',        color:'text-slate-700'  }},
-  cs    :{{label:'C#',          badge:'ext-code',  icon:'file-code',        color:'text-purple-700' }},
-  go    :{{label:'Go',          badge:'ext-code',  icon:'file-code',        color:'text-sky-700'    }},
-  rb    :{{label:'Ruby',        badge:'ext-code',  icon:'file-code',        color:'text-red-600'    }},
   sql   :{{label:'SQL',         badge:'ext-code',  icon:'database',         color:'text-orange-700' }},
   sh    :{{label:'Script',      badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
   bat   :{{label:'Batch',       badge:'ext-code',  icon:'terminal',         color:'text-slate-700'  }},
-  exe   :{{label:'Ejecutable',  badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
-  dll   :{{label:'DLL',         badge:'ext-default',icon:'cpu',             color:'text-slate-700'  }},
 }};
 
 function getExtMeta(nombre, esDir) {{
@@ -760,9 +869,7 @@ function formatDate(ts) {{
   }} catch {{ return '—'; }}
 }}
 
-// ─── ACCIONES DE SUBIDA ───────────────────────────────────────────
-
-// 1. Subir archivos sueltos o múltiples (Word, Excel, PDF, etc.)
+// ─── ACCIONES DE CARGA ────────────────────────────────────────────
 function abrirArchivos() {{
   document.getElementById('input-files').click();
 }}
@@ -774,7 +881,6 @@ document.getElementById('input-files').addEventListener('change', function(e) {{
   e.target.value = '';
 }});
 
-// 2. Abrir carpeta
 function abrirDirectorio() {{
   if (FS_API) {{
     abrirConFsApi();
@@ -812,7 +918,6 @@ document.getElementById('input-folder').addEventListener('change', function(e) {
   e.target.value = '';
 }});
 
-// ─── Cargar y acumular archivos ───────────────────────────────────
 function cargarArchivos(files, append = false) {{
   mostrarLoading('Procesando archivos...', files.length + ' archivo(s)');
   try {{
@@ -828,7 +933,7 @@ function cargarArchivos(files, append = false) {{
     let entries = append ? [...state.currentEntries] : [];
     nuevasEntradas.forEach(ne => {{
       const idx = entries.findIndex(e => e.name === ne.name);
-      if (idx >= 0) entries[idx] = ne; // actualizar si ya existía
+      if (idx >= 0) entries[idx] = ne;
       else entries.push(ne);
     }});
 
@@ -855,7 +960,7 @@ function cargarArchivos(files, append = false) {{
   ocultarLoading();
 }}
 
-// ─── Drag & Drop Universal ────────────────────────────────────────
+// Drag & Drop
 window.addEventListener('dragover', (e) => {{
   e.preventDefault();
   document.body.classList.add('drag-over');
@@ -875,7 +980,7 @@ window.addEventListener('drop', (e) => {{
   }}
 }});
 
-// ─── Métodos de lectura de carpetas ───────────────────────────────
+// ─── Lectura de carpetas ──────────────────────────────────────────
 async function cargarEntradasAPI(dirHandle) {{
   const version = ++state.loadVersion;
   mostrarLoading('Leyendo carpeta...', dirHandle.name);
@@ -902,7 +1007,7 @@ async function cargarEntradasAPI(dirHandle) {{
     if (rutaLbl) rutaLbl.textContent = dirHandle.name + '/';
     aplicarNuevasEntradas(entries, totalSize, dirHandle.name);
   }} catch(e) {{
-    toast('Error al leer directorio: ' + e.message, true);
+    toast('Error al leer carpeta: ' + e.message, true);
   }}
   ocultarLoading();
 }}
@@ -967,7 +1072,6 @@ function aplicarNuevasEntradas(entries, totalSize, nombreDir) {{
   actualizarInspector(null);
 }}
 
-// ─── Estadísticas ─────────────────────────────────────────────────
 function actualizarStats(entries, totalSize) {{
   const carpetas = entries.filter(e => e.kind === 'directory').length;
   const archivos = entries.filter(e => e.kind === 'file').length;
@@ -981,7 +1085,7 @@ function actualizarStats(entries, totalSize) {{
     entries.length + ' elementos (' + archivos + ' archivos, ' + carpetas + ' carpetas)';
 }}
 
-// ─── Render Tabla ─────────────────────────────────────────────────
+// ─── RENDER TABLA CON BOTONES DE EDITAR Y ELIMINAR ────────────────
 function renderTabla(entries) {{
   const tbody = document.getElementById('tabla-body');
   tbody.innerHTML = '';
@@ -1022,6 +1126,7 @@ function renderTabla(entries) {{
     const tr = document.createElement('tr');
     tr.className = 'cursor-pointer transition hover:bg-slate-50 ' + (isSelected ? 'row-selected' : '');
     tr.onclick  = (e) => seleccionar(entry, e);
+    // Doble clic abre el visor directamente sin descargar
     tr.ondblclick = () => abrirEntrada(entry);
 
     // Checkbox
@@ -1085,24 +1190,340 @@ function renderTabla(entries) {{
     }}
     tr.appendChild(tdSize);
 
-    // Acción
+    // Acciones: Ver / Editar / Eliminar
     const tdAcc = document.createElement('td');
-    tdAcc.className = 'py-2.5 px-3 text-center';
-    const btnAcc = document.createElement('button');
-    btnAcc.className = 'text-slate-300 hover:text-purple-600 transition p-1 rounded';
-    btnAcc.title = 'Seleccionar';
-    btnAcc.onclick = (e) => {{ e.stopPropagation(); seleccionar(entry, null); }};
-    const moreI = document.createElement('i');
-    moreI.setAttribute('data-lucide','more-horizontal');
-    moreI.className = 'w-4 h-4';
-    btnAcc.appendChild(moreI);
-    tdAcc.appendChild(btnAcc);
+    tdAcc.className = 'py-2 px-2 text-center';
+    tdAcc.innerHTML = `
+      <div class="flex items-center justify-center gap-1">
+        <button onclick="event.stopPropagation(); abrirVisorPara(state.currentEntries[${{state.currentEntries.indexOf(entry)}}])"
+          class="text-slate-400 hover:text-purple-700 hover:bg-purple-50 p-1.5 rounded transition"
+          title="Ver sin descargar">
+          <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="event.stopPropagation(); abrirModalRenombrarPara(state.currentEntries[${{state.currentEntries.indexOf(entry)}}])"
+          class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-1.5 rounded transition"
+          title="Renombrar / Editar">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="event.stopPropagation(); eliminarEntrada(state.currentEntries[${{state.currentEntries.indexOf(entry)}}])"
+          class="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition"
+          title="Eliminar">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    `;
     tr.appendChild(tdAcc);
 
     tbody.appendChild(tr);
   }});
 
   if (window.lucide) lucide.createIcons();
+}}
+
+// ─── VISOR INTEGRADO (NO DESCARGA) ────────────────────────────────
+async function abrirVisorPara(entry) {{
+  if (!entry) return;
+  entryVisorActual = entry;
+  const modal = document.getElementById('modal-visor');
+  const nombreEl = document.getElementById('visor-nombre');
+  const badgeEl = document.getElementById('visor-badge');
+  const tamanoEl = document.getElementById('visor-tamano');
+  const iconEl = document.getElementById('visor-icon');
+  const contenido = document.getElementById('visor-contenido');
+
+  const meta = getExtMeta(entry.name, entry.kind === 'directory');
+  nombreEl.textContent = entry.name;
+  badgeEl.className = 'ext-badge ' + meta.badge;
+  badgeEl.textContent = meta.label;
+  tamanoEl.textContent = entry.kind === 'directory' ? 'Carpeta' : formatSize(entry.size);
+  iconEl.innerHTML = `<i data-lucide="${{meta.icon}}" class="w-4 h-4"></i>`;
+
+  contenido.innerHTML = `
+    <div class="flex flex-col items-center gap-3 text-slate-400">
+      <div class="w-10 h-10 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
+      <p class="text-sm font-medium">Cargando previsualización sin descargar...</p>
+    </div>
+  `;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  if (window.lucide) lucide.createIcons();
+
+  try {{
+    let file = null;
+    if (entry.fileObj) file = entry.fileObj;
+    else if (entry.handle) file = await entry.handle.getFile();
+
+    if (!file) {{
+      contenido.innerHTML = `<p class="text-slate-400">No se pudo acceder al archivo seleccionado.</p>`;
+      return;
+    }}
+
+    const ext = entry.name.includes('.') ? entry.name.split('.').pop().toLowerCase() : '';
+
+    // 1. WORD (.docx, .docm)
+    if (['docx', 'docm'].includes(ext)) {{
+      if (window.mammoth) {{
+        const arrayBuffer = await file.arrayBuffer();
+        const res = await window.mammoth.convertToHtml({{ arrayBuffer }});
+        contenido.innerHTML = `
+          <div class="bg-white rounded-xl shadow-lg p-8 sm:p-12 max-w-3xl w-full mx-auto my-auto overflow-auto max-h-full border border-slate-200 word-doc">
+            ${{res.value || '<p class="text-slate-400 italic">Documento Word sin texto</p>'}}
+          </div>
+        `;
+      }} else {{
+        contenido.innerHTML = `
+          <div class="bg-white p-8 rounded-2xl shadow max-w-md text-center space-y-3">
+            <i data-lucide="file-text" class="w-12 h-12 text-blue-600 mx-auto"></i>
+            <h4 class="font-bold text-slate-800 text-base">${{entry.name}}</h4>
+            <p class="text-xs text-slate-500">Documento de Word listo.</p>
+          </div>
+        `;
+      }}
+    }}
+    // 2. EXCEL (.xlsx, .xls, .csv, .tsv, .ods)
+    else if (['xlsx', 'xls', 'csv', 'tsv', 'ods'].includes(ext)) {{
+      if (window.XLSX) {{
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = window.XLSX.read(arrayBuffer, {{ type: 'array' }});
+        const sheetName = workbook.SheetNames[0] || 'Hoja1';
+        const worksheet = workbook.Sheets[sheetName];
+        const htmlTable = window.XLSX.utils.sheet_to_html(worksheet, {{ editable: false }});
+        contenido.innerHTML = `
+          <div class="bg-white rounded-xl shadow-lg p-4 max-w-full w-full h-full overflow-auto flex flex-col border border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3 shrink-0">
+              <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <i data-lucide="sheet" class="w-4 h-4 text-emerald-600"></i> Hoja activa: ${{sheetName}}
+              </span>
+              <span class="text-xs text-slate-400">Total hojas: ${{workbook.SheetNames.length}}</span>
+            </div>
+            <div class="overflow-auto flex-1 border border-slate-200 rounded-lg text-xs">
+              ${{htmlTable}}
+            </div>
+          </div>
+        `;
+      }} else {{
+        const txt = await file.text();
+        contenido.innerHTML = `
+          <div class="bg-white rounded-xl shadow p-4 max-w-full w-full h-full overflow-auto text-xs font-mono">
+            <pre>${{esc(txt)}}</pre>
+          </div>
+        `;
+      }}
+    }}
+    // 3. PDF (.pdf)
+    else if (ext === 'pdf') {{
+      const url = URL.createObjectURL(file);
+      contenido.innerHTML = `
+        <iframe src="${{url}}#toolbar=1" class="w-full h-full rounded-xl border border-slate-200 bg-white shadow-lg" frameborder="0"></iframe>
+      `;
+    }}
+    // 4. IMÁGENES (.jpg, .jpeg, .png, .gif, .webp, .svg, .bmp)
+    else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) {{
+      const url = URL.createObjectURL(file);
+      contenido.innerHTML = `
+        <div class="flex items-center justify-center w-full h-full p-2">
+          <img src="${{url}}" alt="${{entry.name}}" class="max-w-full max-h-full object-contain rounded-xl shadow-xl bg-white p-2 border border-slate-200">
+        </div>
+      `;
+    }}
+    // 5. VIDEOS (.mp4, .webm, .mov, .mkv, .avi)
+    else if (['mp4', 'webm', 'mov', 'mkv', 'avi'].includes(ext)) {{
+      const url = URL.createObjectURL(file);
+      contenido.innerHTML = `
+        <div class="flex items-center justify-center w-full h-full p-2">
+          <video controls autoplay class="max-w-full max-h-full rounded-xl shadow-2xl bg-black">
+            <source src="${{url}}">
+          </video>
+        </div>
+      `;
+    }}
+    // 6. AUDIO (.mp3, .wav, .ogg, .m4a, .flac)
+    else if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {{
+      const url = URL.createObjectURL(file);
+      contenido.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center gap-4 text-center max-w-md w-full border border-slate-200">
+          <div class="w-20 h-20 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center">
+            <i data-lucide="music" class="w-10 h-10"></i>
+          </div>
+          <p class="font-bold text-slate-800 text-sm break-all">${{entry.name}}</p>
+          <audio controls autoplay class="w-full mt-2">
+            <source src="${{url}}">
+          </audio>
+        </div>
+      `;
+    }}
+    // 7. TEXTO / CÓDIGO (.txt, .md, .json, .py, .js, .ts, .html, .css, .sql, .xml, .sh, .bat)
+    else if (['txt', 'md', 'json', 'py', 'js', 'ts', 'html', 'css', 'sql', 'xml', 'sh', 'bat', 'log'].includes(ext)) {{
+      const text = await file.text();
+      contenido.innerHTML = `
+        <div class="bg-slate-900 text-slate-100 p-6 rounded-xl shadow-xl max-w-4xl w-full h-full overflow-auto font-mono text-xs leading-relaxed select-text border border-slate-800">
+          <pre><code>${{esc(text)}}</code></pre>
+        </div>
+      `;
+    }}
+    // 8. OTROS FORMATOS
+    else {{
+      contenido.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg max-w-md text-center space-y-3 border border-slate-200">
+          <div class="w-16 h-16 bg-slate-100 rounded-2xl mx-auto flex items-center justify-center text-slate-600">
+            <i data-lucide="${{meta.icon}}" class="w-8 h-8"></i>
+          </div>
+          <h4 class="font-bold text-slate-800 text-base break-all">${{entry.name}}</h4>
+          <p class="text-xs text-slate-400">Tipo: ${{meta.label}} • Tamaño: ${{formatSize(entry.size)}}</p>
+          <div class="flex items-center justify-center gap-2 pt-2">
+            <button onclick="abrirModalRenombrarPara(entryVisorActual)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-xl transition">Renombrar</button>
+            <button onclick="descargarArchivo(entryVisorActual)" class="bg-[#5B21B6] hover:bg-[#4C1D95] text-white text-xs font-bold px-4 py-2 rounded-xl transition">Descargar</button>
+          </div>
+        </div>
+      `;
+    }}
+  }} catch(err) {{
+    contenido.innerHTML = `
+      <div class="bg-white p-6 rounded-2xl shadow text-center text-red-500 max-w-md">
+        <i data-lucide="alert-circle" class="w-10 h-10 mx-auto mb-2"></i>
+        <p class="font-bold text-sm">No se pudo cargar la vista previa</p>
+        <p class="text-xs text-slate-400 mt-1">${{err.message}}</p>
+      </div>
+    `;
+  }}
+
+  addReciente(entry);
+  if (window.lucide) lucide.createIcons();
+}}
+
+function cerrarVisor() {{
+  const modal = document.getElementById('modal-visor');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.getElementById('visor-contenido').innerHTML = '';
+  entryVisorActual = null;
+}}
+
+function editarNombreDesdeVisor() {{
+  if (entryVisorActual) abrirModalRenombrarPara(entryVisorActual);
+}}
+
+function descargarArchivoActual() {{
+  if (entryVisorActual) descargarArchivo(entryVisorActual);
+}}
+
+function eliminarArchivoActual() {{
+  if (!entryVisorActual) return;
+  const toDelete = entryVisorActual;
+  cerrarVisor();
+  eliminarEntrada(toDelete);
+}}
+
+// ─── ELIMINAR ARCHIVOS ────────────────────────────────────────────
+function eliminarEntrada(entry, conConfirm = true) {{
+  if (conConfirm && !confirm(`¿Estás seguro de eliminar "${{entry.name}}"?`)) return;
+  const idx = state.currentEntries.indexOf(entry);
+  if (idx >= 0) {{
+    state.currentEntries.splice(idx, 1);
+  }}
+  state.selSet.delete(entry);
+  if (state.selObj === entry) state.selObj = null;
+  state.favoritos.delete(entry.name);
+
+  const totalSize = state.currentEntries.reduce((acc, e) => acc + (e.size || 0), 0);
+  actualizarStats(state.currentEntries, totalSize);
+  aplicarFiltros();
+  actualizarInspector(null);
+  toast(`"${{entry.name}}" eliminado`);
+}}
+
+function eliminarArchivoSeleccionado() {{
+  if (!state.selObj) return;
+  eliminarEntrada(state.selObj);
+}}
+
+function eliminarLoteSeleccionado() {{
+  const seleccionados = Array.from(state.selSet);
+  if (!seleccionados.length) return;
+  if (!confirm(`¿Eliminar los ${{seleccionados.length}} archivo(s) seleccionados?`)) return;
+
+  seleccionados.forEach(entry => {{
+    const idx = state.currentEntries.indexOf(entry);
+    if (idx >= 0) state.currentEntries.splice(idx, 1);
+    state.favoritos.delete(entry.name);
+  }});
+  state.selSet.clear();
+  state.selObj = null;
+
+  const totalSize = state.currentEntries.reduce((acc, e) => acc + (e.size || 0), 0);
+  actualizarStats(state.currentEntries, totalSize);
+  aplicarFiltros();
+  actualizarInspector(null);
+  toast(`${{seleccionados.length}} archivo(s) eliminados`);
+}}
+
+// ─── EDITAR / RENOMBRAR ───────────────────────────────────────────
+function abrirModalRenombrarPara(entry) {{
+  entryParaRenombrar = entry;
+  const input = document.getElementById('input-nuevo-nombre');
+  input.value = entry.name;
+  document.getElementById('modal-renombrar').classList.remove('hidden');
+  document.getElementById('modal-renombrar').classList.add('flex');
+  setTimeout(() => input.focus(), 50);
+}}
+
+function abrirModalRenombrar() {{
+  if (state.selObj) abrirModalRenombrarPara(state.selObj);
+}}
+
+function cerrarModalRenombrar() {{
+  document.getElementById('modal-renombrar').classList.add('hidden');
+  document.getElementById('modal-renombrar').classList.remove('flex');
+  entryParaRenombrar = null;
+}}
+
+function guardarNuevoNombre() {{
+  if (!entryParaRenombrar) return;
+  const input = document.getElementById('input-nuevo-nombre');
+  const nuevoNombre = input.value.trim();
+  if (!nuevoNombre) {{
+    toast('El nombre no puede estar vacío', true);
+    return;
+  }}
+  const viejoNombre = entryParaRenombrar.name;
+  entryParaRenombrar.name = nuevoNombre;
+
+  if (state.favoritos.has(viejoNombre)) {{
+    state.favoritos.delete(viejoNombre);
+    state.favoritos.add(nuevoNombre);
+  }}
+
+  cerrarModalRenombrar();
+  aplicarFiltros();
+  actualizarInspector(entryParaRenombrar);
+
+  const visorNombre = document.getElementById('visor-nombre');
+  if (visorNombre && entryVisorActual === entryParaRenombrar) {{
+    visorNombre.textContent = nuevoNombre;
+  }}
+
+  toast(`Renombrado a: ${{nuevoNombre}}`);
+}}
+
+// Descargar archivo si el usuario explícitamente lo solicita
+function descargarArchivo(entry) {{
+  if (!entry) return;
+  const getF = async () => {{
+    if (entry.fileObj) return entry.fileObj;
+    if (entry.handle) return await entry.handle.getFile();
+    return null;
+  }};
+  getF().then(f => {{
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = entry.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }});
 }}
 
 // ─── Árbol ────────────────────────────────────────────────────────
@@ -1135,7 +1556,6 @@ async function navArbol(idx) {{
   await cargarEntradasAPI(state.currentHandle);
 }}
 
-// ─── Abrir / Ver Archivo ──────────────────────────────────────────
 async function abrirEntrada(entry) {{
   if (!entry) return;
   if (entry.kind === 'directory') {{
@@ -1147,25 +1567,8 @@ async function abrirEntrada(entry) {{
       toast('Navega dentro de subcarpetas seleccionándolas con "Abrir Carpeta".');
     }}
   }} else {{
-    try {{
-      let file;
-      if (entry.fileObj) {{
-        file = entry.fileObj;
-      }} else if (entry.handle) {{
-        file = await entry.handle.getFile();
-      }}
-      if (!file) {{
-        toast('No se pudo acceder al archivo seleccionado', true);
-        return;
-      }}
-      const url = URL.createObjectURL(file);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      addReciente(entry);
-      toast('Abriendo: ' + entry.name);
-    }} catch(e) {{
-      toast('Error al abrir: ' + e.message, true);
-    }}
+    // Abrir directamente en el visor integrado sin descargar
+    await abrirVisorPara(entry);
   }}
 }}
 
@@ -1198,13 +1601,13 @@ function seleccionar(entry, event) {{
   state.selObj = entry;
   actualizarInspector(entry);
   renderTabla(state.filtrados.length ? state.filtrados : state.currentEntries);
-  document.getElementById('status-sel').textContent = state.selSet.size + ' seleccionados';
+  actualizarBarraSeleccion();
 }}
 
 function toggleSel(entry) {{
   if (state.selSet.has(entry)) state.selSet.delete(entry);
   else state.selSet.add(entry);
-  document.getElementById('status-sel').textContent = state.selSet.size + ' seleccionados';
+  actualizarBarraSeleccion();
 }}
 
 function selTodos(chk) {{
@@ -1212,7 +1615,17 @@ function selTodos(chk) {{
   if (chk.checked) lista.forEach(e => state.selSet.add(e));
   else state.selSet.clear();
   renderTabla(lista);
-  document.getElementById('status-sel').textContent = state.selSet.size + ' seleccionados';
+  actualizarBarraSeleccion();
+}}
+
+function actualizarBarraSeleccion() {{
+  const count = state.selSet.size;
+  document.getElementById('status-sel').textContent = count + ' seleccionados';
+  const btnLote = document.getElementById('btn-eliminar-lote');
+  if (btnLote) {{
+    if (count > 0) btnLote.classList.remove('hidden');
+    else btnLote.classList.add('hidden');
+  }}
 }}
 
 // ─── Inspector ────────────────────────────────────────────────────
@@ -1264,14 +1677,13 @@ function actualizarInspector(entry) {{
   if (window.lucide) lucide.createIcons();
 }}
 
-async function abrirDocumento() {{
-  if (state.selObj) await abrirEntrada(state.selObj);
+function abrirDocumento() {{
+  if (state.selObj) abrirVisorPara(state.selObj);
 }}
 
 function copiarRutaInspector() {{
   if (!state.selObj) return;
-  const ruta = (state.currentHandle?.name || 'documentos') + '\\\\' + state.selObj.name;
-  navigator.clipboard.writeText(ruta)
+  navigator.clipboard.writeText(state.selObj.name)
     .then(() => toast('Nombre copiado al portapapeles'))
     .catch(() => toast('Error al copiar', true));
 }}
@@ -1291,7 +1703,7 @@ function toggleFavoritoInspector() {{
   renderListaFavoritos();
 }}
 
-// ─── Filtros exactos según el selector ────────────────────────────
+// ─── Filtros ──────────────────────────────────────────────────────
 function aplicarFiltros() {{
   if (!state.currentEntries.length) return;
   const q    = (document.getElementById('buscador-top')?.value || '').toLowerCase().trim();
@@ -1311,19 +1723,19 @@ function aplicarFiltros() {{
           matchTipo = ext === 'pdf';
           break;
         case 'doc' :
-          matchTipo = ['doc','docx','docm','dot','dotx'].includes(ext);
+          matchTipo = ['doc','docx','docm','dotx'].includes(ext);
           break;
         case 'xls' :
           matchTipo = ['xls','xlsx','xlsm','csv','tsv','ods'].includes(ext);
           break;
         case 'ppt' :
-          matchTipo = ['ppt','pptx','pptm','potx'].includes(ext);
+          matchTipo = ['ppt','pptx'].includes(ext);
           break;
         case 'img' :
-          matchTipo = ['jpg','jpeg','png','gif','webp','svg','bmp','tiff','psd','ai','fig'].includes(ext) || m?.badge === 'ext-img';
+          matchTipo = ['jpg','jpeg','png','gif','webp','svg','bmp','tiff','psd','ai'].includes(ext) || m?.badge === 'ext-img';
           break;
         case 'vid' :
-          matchTipo = ['mp4','mov','avi','mkv','wmv','webm'].includes(ext) || m?.badge === 'ext-vid';
+          matchTipo = ['mp4','mov','avi','mkv','webm'].includes(ext) || m?.badge === 'ext-vid';
           break;
         case 'mp3' :
           matchTipo = ['mp3','wav','flac','ogg','m4a'].includes(ext) || m?.badge === 'ext-mp3';
@@ -1332,10 +1744,10 @@ function aplicarFiltros() {{
           matchTipo = ['zip','rar','7z','tar','gz'].includes(ext) || m?.badge === 'ext-zip';
           break;
         case 'txt' :
-          matchTipo = ['txt','md','xml','rtf'].includes(ext) || m?.badge === 'ext-txt';
+          matchTipo = ['txt','md','xml','log'].includes(ext) || m?.badge === 'ext-txt';
           break;
         case 'code':
-          matchTipo = ['py','js','ts','html','htm','css','json','java','cpp','cs','go','rb','sql','sh','bat'].includes(ext) || ['ext-code','ext-js','ext-html'].includes(m?.badge || '');
+          matchTipo = ['py','js','ts','html','css','json','sql','sh','bat'].includes(ext) || ['ext-code','ext-js','ext-html'].includes(m?.badge || '');
           break;
       }}
     }}
@@ -1459,7 +1871,7 @@ function renderListaRecientes() {{
   state.recientes.forEach(entry => {{
     const div = document.createElement('div');
     div.className = 'flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer';
-    div.onclick = () => abrirEntrada(entry);
+    div.onclick = () => abrirVisorPara(entry);
     const meta = getExtMeta(entry.name, false);
     div.innerHTML = `
       <i data-lucide="${{meta.icon}}" class="w-4 h-4 ${{meta.color}} shrink-0"></i>
@@ -1566,7 +1978,6 @@ with open("index.html", "w", encoding="utf-8") as f:
     f.write(HTML)
 
 print(f"index.html generado: {len(HTML):,} caracteres")
-print("[OK] Subida de archivos individuales y multiples (Word, Excel, PDF, etc.)")
-print("[OK] Apertura de carpetas completas")
-print("[OK] Soporte Drag & Drop universal")
-print("[OK] Filtros por extension completados")
+print("[OK] Visor integrado sin descargar (Word via Mammoth, Excel via SheetJS, PDF, fotos, video)")
+print("[OK] Funcion de eliminar (individual y por lote)")
+print("[OK] Funcion de editar / renombrar con modal")
