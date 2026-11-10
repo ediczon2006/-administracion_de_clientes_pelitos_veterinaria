@@ -191,3 +191,61 @@ PROBABLE = "COINCIDENCIA PROBABLE"
 REVISION = "REQUIERE REVISIÓN"
 SIN = "SIN COINCIDENCIA"
 MANUAL = "SEGURA (MANUAL)"
+
+# ---------------------------------------------------------------------------
+# 5. CANALES OFICIALES DE ATENCIÓN Y REDIRECCIÓN WHATSAPP
+# ---------------------------------------------------------------------------
+CANALES_ATENCION = [
+    {
+        "id": "tienda",
+        "categoria": "CANAL COMERCIAL & TIENDA",
+        "titulo": "Pet Shop & Farmacia",
+        "telefono": "927 301 122",
+        "telefono_raw": "51927301122",
+        "unidad": "Pet Shop",
+        "color_gradiente": "from-teal-400 to-cyan-500",
+        "color_accent": "#0d9488",
+        "bg_badge": "bg-teal-50",
+        "text_badge": "text-teal-700",
+        "border_badge": "border-teal-200",
+        "icono": "store",
+        "badge_tag": "Tienda Oficial",
+        "descripcion": "Alimentos premium, accesorios, snacks, medicamentos veterinarios y despacho rápido.",
+        "mensaje_wa": "Hola Pelitos Pet Shop & Farmacia, quisiera consultar sobre un producto o medicamento",
+    },
+    {
+        "id": "medico",
+        "categoria": "SERVICIOS MÉDICOS & CIRUGÍA",
+        "titulo": "Consultorio Veterinario",
+        "telefono": "939 356 376",
+        "telefono_raw": "51939356376",
+        "unidad": "Consultorio Veterinario",
+        "color_gradiente": "from-emerald-400 to-teal-500",
+        "color_accent": "#059669",
+        "bg_badge": "bg-emerald-50",
+        "text_badge": "text-emerald-700",
+        "border_badge": "border-emerald-200",
+        "icono": "stethoscope",
+        "badge_tag": "Atención Médica",
+        "descripcion": "Consultas clínicas, medicina preventiva, cirugías, diagnósticos y control de tratamientos.",
+        "mensaje_wa": "Hola Consultorio Veterinario Pelitos, deseo agendar una consulta médica o urgencia",
+    },
+    {
+        "id": "grooming",
+        "categoria": "GROOMING & BIENESTAR SIN ESTRÉS",
+        "titulo": "Estética Canina & Spa",
+        "telefono": "948 426 656",
+        "telefono_raw": "51948426656",
+        "unidad": "Estética Canina",
+        "color_gradiente": "from-purple-500 to-indigo-500",
+        "color_accent": "#7c3aed",
+        "bg_badge": "bg-purple-50",
+        "text_badge": "text-purple-700",
+        "border_badge": "border-purple-200",
+        "icono": "scissors",
+        "badge_tag": "Grooming & Spa",
+        "descripcion": "Baño medicado, cortes especializados, spa relajante, secado silencioso y técnica cat-friendly.",
+        "mensaje_wa": "Hola Pelitos Spa & Estética Canina, deseo reservar un turno de baño y corte",
+    },
+]
+
