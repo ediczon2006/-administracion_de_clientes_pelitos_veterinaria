@@ -187,39 +187,55 @@ TABLAS_VALIDAS = {
 }
 
 
-def conectar(ruta=None) -> sqlite3.Connection:
-    """Abre o crea la base SQLite con soporte concurrente y funciones nativas."""
+def conectar(ruta=None, inicializar: bool = True) -> sqlite3.Connection:
+    """Abre o crea la base SQLite con modo WAL, soporte concurrente y funciones nativas."""
     conn = sqlite3.connect(str(ruta or config.DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 10000")
-    
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+    except sqlite3.DatabaseError:
+        pass
+
     from modules.normalizacion import normalizar_texto
     conn.create_function("NORM", 1, normalizar_texto)
     conn.create_function("DIGITOS", 1, lambda v: re.sub(r"\D", "", str(v)) if v is not None else None)
-    conn.executescript(ESQUEMA)
+    if inicializar:
+        conn.executescript(ESQUEMA)
     return conn
 
 
 def init_db(ruta=None):
     """Inicializa la base de datos asegurando esquema e índices."""
-    conn = conectar(ruta)
+    conn = conectar(ruta, inicializar=True)
     conn.close()
     return True
 
 
 @contextmanager
-def get_db(ruta=None):
+def get_db(ruta=None, inicializar: bool = True):
     """Context manager para obtener y cerrar conexión SQLite con commit automático."""
-    conn = conectar(ruta)
+    conn = conectar(ruta, inicializar=inicializar)
     try:
         yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
+        try:
+            conn.commit()
+        except sqlite3.ProgrammingError:
+            pass
+    except BaseException:
+        try:
+            if conn.in_transaction:
+                conn.rollback()
+        except sqlite3.ProgrammingError:
+            pass
         raise
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except sqlite3.ProgrammingError:
+            pass
 
 
 @contextmanager

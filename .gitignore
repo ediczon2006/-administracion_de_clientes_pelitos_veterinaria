@@ -1,9 +1,20 @@
 # Datos reales de clientes (Privacidad protegida)
 database/*.db
+database/*.db-wal
+database/*.db-shm
 data/originales/*
 data/procesados/*
+data/ejemplos/*
+data/ejemplos_ficticios/*
+data/*_reales*.json
+data/pelitos_datos_reales.json
 backup/*
 !**/.gitkeep
+
+# Secretos y credenciales locales
+.env
+.env.*
+.streamlit/secrets.toml
 
 # Entornos virtuales y caché
 __pycache__/

@@ -85,7 +85,7 @@ def normalizar_telefono(valor):
     texto = a_texto(valor)
     if texto is None:
         return None, False
-    primero = re.split(r"[/;,|\-]|\sy\s", texto)[0].strip()
+    primero = re.split(r"[/;,|]|\s+-\s+|\s+y\s+", texto, flags=re.IGNORECASE)[0].strip()
     digitos = re.sub(r"\D", "", primero)
     if digitos.startswith("00"):
         digitos = digitos[2:]

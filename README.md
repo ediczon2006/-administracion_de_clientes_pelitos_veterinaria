@@ -4,34 +4,49 @@ Sistema profesional de fidelización, administración de historias clínicas y s
 
 ---
 
+## 🔐 Seguridad y Autenticación Obligatoria
+El acceso al panel CRM protege todos los datos clínicos y administrativos mediante contraseñas hasheadas (**PBKDF2-HMAC-SHA256**) y roles (`admin` / `operador`).
+
+1. **Genere su hash de contraseña seguro** (nunca guarde contraseñas en texto plano ni las suba a Git):
+   ```bash
+   python -m modules.auth
+   ```
+2. **En local:** cree `.streamlit/secrets.toml` usando como plantilla `.streamlit/secrets.toml.example` (este archivo está excluido en `.gitignore`).
+3. **En Streamlit Community Cloud:** pegue el mismo bloque `[auth.users.<usuario>]` en **Settings → Secrets**.
+4. **En Docker:** pase las variables de entorno `PELITOS_ADMIN_USER` y `PELITOS_ADMIN_PASSWORD_HASH` (y opcionalmente `PELITOS_OPERATOR_USER` / `PELITOS_OPERATOR_PASSWORD_HASH`).
+
+---
+
 ## 🚀 Despliegue en la Nube (Streamlit Cloud)
-El proyecto está completamente preparado para ser compartido mediante GitHub:
-1. Conecte su repositorio: `https://github.com/ediczon2006/-administracion_de_clientes_pelitos_veterinaria`
-2. En [Streamlit Community Cloud](https://share.streamlit.io), seleccione:
-   - **Repository:** `ediczon2006/-administracion_de_clientes_pelitos_veterinaria`
+1. Conecte su repositorio en [Streamlit Community Cloud](https://share.streamlit.io).
+2. Seleccione:
    - **Branch:** `main`
    - **Main file path:** `app.py`
-3. ¡Listo! La aplicación detecta automáticamente entornos de solo lectura y gestiona los respaldos de forma segura.
+3. Configure sus credenciales en **Settings → Secrets** según `.streamlit/secrets.toml.example`.
+4. La aplicación detecta automáticamente entornos de solo lectura y gestiona respaldos de forma segura.
 
 ---
 
 ## 💻 Ejecución Local en Windows
-1. Haga doble clic en el archivo **`iniciar_crm.bat`**
-2. O ejecute desde la terminal:
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+1. Instale dependencias:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Configure `.streamlit/secrets.toml` (ver sección de Seguridad).
+3. Haga doble clic en **`iniciar_crm.bat`** o ejecute:
+   ```bash
+   streamlit run app.py
+   ```
 
 ---
 
 ## 📑 Soporte Certificado de Reportes VetPraxis
-El sistema reconoce automáticamente (100% de precisión) los formatos reales exportados de VetPraxis:
+El sistema reconoce automáticamente los formatos exportados de VetPraxis:
 1. **Clientes (`Reporte de Clientes.xlsx`):** Normaliza DNI/RUC/CE, teléfonos peruanos (+51) y nombres en formato `"APELLIDOS, NOMBRES"`.
 2. **Mascotas (`Reporte de Mascotas.xlsx`):** Historias clínicas (HC), especies, razas, sexo, esterilización y datos del tutor.
 3. **Historias Clínicas (`Reporte de Historias Clnicas - ....xlsx`):** Ignora metadatos en las filas iniciales y captura atenciones, diagnósticos y tratamientos.
-4. **Ventas y Facturación:** Soporta tanto el **Reporte de Comprobantes** (`Reporte de Comprobantes....xlsx`) como el **Reporte de Ventas por Ítem** (`Reporte de ventas por items....xlsx`).
-5. **Citas y Agenda:** Importa agendas y eventos extraídos.
+4. **Ventas y Facturación:** Soporta tanto el **Reporte de Comprobantes** como el **Reporte de Ventas por Ítem**.
+5. **Citas y Agenda:** Importa agendas en Excel/CSV o JSON extraído desde VetPraxis.
 
 ---
 
@@ -48,7 +63,8 @@ Para URLs como:
 ---
 
 ## 🧪 Pruebas Automatizadas
-Para ejecutar la suite de pruebas con los reportes reales:
+Instale dependencias de desarrollo y ejecute la suite de pruebas:
 ```bash
-pytest tests/test_vetpraxis_real.py -v
+pip install -r requirements-dev.txt
+pytest -v
 ```

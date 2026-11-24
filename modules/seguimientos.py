@@ -87,8 +87,10 @@ def listar(conn, estados=None, responsable=None, solo_vencidos=False, id_mascota
         clausulas.append("s.responsable = ?")
         params.append(responsable)
     if solo_vencidos:
-        clausulas.append("s.proxima_fecha < ? AND s.estado IN ('" + "','".join(config.ESTADOS_ABIERTOS) + "')")
+        ph_ab = ",".join("?" * len(config.ESTADOS_ABIERTOS))
+        clausulas.append(f"s.proxima_fecha < ? AND s.estado IN ({ph_ab})")
         params.append(date.today().isoformat())
+        params.extend(config.ESTADOS_ABIERTOS)
     if id_mascota:
         clausulas.append("s.id_mascota = ?")
         params.append(id_mascota)

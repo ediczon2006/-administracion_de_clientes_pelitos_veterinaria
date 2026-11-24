@@ -30,7 +30,7 @@ DB_DIR = _raiz_datos / "database"
 DB_PATH = DB_DIR / "pelitos_crm.db"
 BACKUP_DIR = _raiz_datos / "backup"
 REGLAS_PATH = BASE_DIR / "data" / "reglas_clinicas.json"
-DIR_EJEMPLOS = BASE_DIR / "data" / "ejemplos_ficticios"
+DIR_EJEMPLOS = _raiz_datos / "data" / "ejemplos"
 
 for _carpeta in (DATA_ORIGINALES, DATA_PROCESADOS, DB_DIR, BACKUP_DIR, DIR_EJEMPLOS):
     _carpeta.mkdir(parents=True, exist_ok=True)
@@ -172,6 +172,7 @@ MOTIVOS_SEGUIMIENTO = [
     "Control Antiparasitario", "Estética y Baño", "Chequeo Preventivo", "Cita Agendada", "Otro"
 ]
 PROXIMAS_ACCIONES = ["Volver a llamar", "Enviar WhatsApp", "Confirmar cita", "Revisar evolución", "Cerrar caso", "Ninguna"]
+ACCIONES_SEGUIMIENTO = PROXIMAS_ACCIONES
 RESPONSABLES = ["Recepción", "Administración", "Médico Veterinario", "Gerencia"]
 
 CRITERIO_REACTIVADO = "Pacientes o tutores contactados que han vuelto a atenderse o han generado cita en los últimos 30 días."

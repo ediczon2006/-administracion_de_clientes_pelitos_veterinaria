@@ -1,0 +1,27 @@
+# Excluir control de versiones y secretos
+.git
+.gitignore
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Excluir datos reales, respaldos y bases de datos locales (PII)
+database/*.db
+database/*.db-wal
+database/*.db-shm
+backup/*.db
+data/originales/*
+data/procesados/*
+data/ejemplos_ficticios/*
+data/*_reales*.json
+data/pelitos_datos_reales.json
+
+# Excluir cachés, entornos y pruebas
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+tests/
+scripts/
+iniciar_crm.bat

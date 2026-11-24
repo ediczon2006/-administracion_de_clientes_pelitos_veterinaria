@@ -209,7 +209,7 @@ def process_sections(sections):
     # Generar algunos seguimientos automáticos de muestra a partir de las atenciones
     for atn in db["atenciones"][:8]:
         if atn.get("diagnostico") or atn.get("tipo") == "Vacuna":
-            db["seguimientos"].push = db["seguimientos"].append({
+            db["seguimientos"].append({
                 "fecha": atn["fecha"].split()[0] if atn["fecha"] else "2026-09-22",
                 "cliente": "",  # Se vinculará por HC
                 "mascota": atn["paciente"],

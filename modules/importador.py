@@ -10,7 +10,7 @@ import re
 import pandas as pd
 
 from modules import config, relaciones
-from modules.database import transaccion
+from modules.database import TABLAS_VALIDAS, transaccion
 from modules.normalizacion import (a_texto, normalizar_documento, normalizar_fecha,
                                    normalizar_hc, normalizar_numero, normalizar_telefono, normalizar_texto)
 
@@ -109,15 +109,19 @@ def _transformar_venta(fila):
         # En reporte de comprobantes VetPraxis, usar la descripción o comprobante
         item = f"{categoria or 'Comprobante'} {comprobante or ''}".strip() or "Venta General"
 
+    cantidad = normalizar_numero(fila.get("cantidad"))
+    total = normalizar_numero(fila.get("total"))
+    precio = normalizar_numero(fila.get("precio"))
+
     return {
         "fecha": normalizar_fecha(fila.get("fecha")), "fecha_original": _v(fila, "fecha"),
         "comprobante": comprobante, "cliente_documento": _v(fila, "cliente_documento"),
         "_doc_norm": doc_norm, "cliente_nombre": _v(fila, "cliente_nombre"),
         "hc": _v(fila, "hc"), "hc_norm": normalizar_hc(fila.get("hc")), "mascota": _v(fila, "mascota"),
         "categoria": categoria, "item": item,
-        "cantidad": normalizar_numero(fila.get("cantidad")) or 1.0,
-        "precio": normalizar_numero(fila.get("precio")) or normalizar_numero(fila.get("total")),
-        "total": normalizar_numero(fila.get("total")), "fila_excel": int(fila["fila_excel"]),
+        "cantidad": cantidad if cantidad is not None else 1.0,
+        "precio": precio if precio is not None else total,
+        "total": total, "fila_excel": int(fila["fila_excel"]),
     }
 
 
@@ -141,6 +145,8 @@ CAMPOS_IDENTIDAD = {"clave_unica", "fila_excel", "hc", "hc_norm", "documento", "
 
 
 def _upsert(conn, tabla, id_col, registro, id_imp, resumen):
+    if tabla not in TABLAS_VALIDAS:
+        raise ValueError(f"Tabla no autorizada: {tabla}")
     existente = conn.execute(f"SELECT * FROM {tabla} WHERE clave_unica = ?", (registro["clave_unica"],)).fetchone()
     if existente is None:
         registro.update({"id_importacion": id_imp, "actualizado_en": ahora()})
@@ -171,6 +177,8 @@ def _upsert(conn, tabla, id_col, registro, id_imp, resumen):
 
 
 def _insertar_eventos(conn, tabla, registros, campos_clave, id_imp, resumen):
+    if tabla not in TABLAS_VALIDAS:
+        raise ValueError(f"Tabla no autorizada: {tabla}")
     repeticiones = defaultdict(int)
     for reg in registros:
         base = tuple(normalizar_texto(reg.get(c)) if isinstance(reg.get(c), str) else reg.get(c)

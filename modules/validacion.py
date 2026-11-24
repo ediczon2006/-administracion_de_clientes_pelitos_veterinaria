@@ -83,7 +83,7 @@ def detectar_tipo_reporte(df_crudo: pd.DataFrame) -> tuple:
         "ventas": ["total", "precio", "comprobante", "item", "cantidad"],
         "mascotas": ["especie", "raza", "sexo", "esterilizacion"],
         "clientes": ["documento", "celular", "direccion"],
-        "citas": ["tipo_evento", "motivo_cita", "estado", "fecha"]
+        "citas": ["tipo_evento", "motivo", "estado", "fecha"]
     }
 
     for tipo, definicion in config.REPORTES.items():

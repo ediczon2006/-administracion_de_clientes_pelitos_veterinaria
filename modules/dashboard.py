@@ -8,7 +8,8 @@ from modules import config, database
 
 
 def calcular(conn) -> list:
-    abiertos = ",".join(f"'{e}'" for e in config.ESTADOS_ABIERTOS)
+    placeholders = ",".join("?" for _ in config.ESTADOS_ABIERTOS)
+    abiertos_sql_doc = ",".join(f"'{e}'" for e in config.ESTADOS_ABIERTOS)
     return [
         {
             "id": "kpi_clientes", "grupo": "datos", "nombre": "Clientes Registrados",
@@ -47,15 +48,15 @@ def calcular(conn) -> list:
         },
         {
             "id": "kpi_seg_abiertos", "grupo": "seguimiento", "nombre": "Seguimientos Activos",
-            "valor": database.contar(conn, "seguimientos", f"estado IN ({abiertos})"),
+            "valor": database.contar(conn, "seguimientos", f"estado IN ({placeholders})", tuple(config.ESTADOS_ABIERTOS)),
             "fuente": "Tabla 'seguimientos'",
             "explicacion": f"Casos pendientes o en gestión activa ({', '.join(config.ESTADOS_ABIERTOS)}).",
-            "sql_conteo": f"SELECT COUNT(*) FROM seguimientos WHERE estado IN ({abiertos})",
-            "sql_detalle": f"SELECT id_seguimiento, fecha, motivo, estado, responsable FROM seguimientos WHERE estado IN ({abiertos})"
+            "sql_conteo": f"SELECT COUNT(*) FROM seguimientos WHERE estado IN ({abiertos_sql_doc})",
+            "sql_detalle": f"SELECT id_seguimiento, fecha, motivo, estado, responsable FROM seguimientos WHERE estado IN ({abiertos_sql_doc})"
         },
         {
             "id": "kpi_seg_reactivados", "grupo": "seguimiento", "nombre": "Pacientes Reactivados",
-            "valor": database.contar(conn, "seguimientos", "estado = 'Reactivado'"),
+            "valor": database.contar(conn, "seguimientos", "estado = ?", ("Reactivado",)),
             "fuente": "Tabla 'seguimientos'",
             "explicacion": config.CRITERIO_REACTIVADO,
             "sql_conteo": "SELECT COUNT(*) FROM seguimientos WHERE estado = 'Reactivado'",
